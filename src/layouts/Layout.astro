@@ -1,0 +1,164 @@
+---
+// src/layouts/Layout.astro
+import { nurseryMeta } from '../data/processedData';
+import { siteUrl } from '../utils/siteUrl';
+import '../styles/global.css';
+
+interface Props {
+  title: string;
+}
+
+const { title } = Astro.props;
+const formatPhone = (phone: string) => phone.replace(/^(\d{3})(\d{3})(\d{4})$/, '$1 $2 $3');
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Rotorua-grown native plants for restoration, riparian planting and landscapes across Aotearoa. Explore WaiNot Native Nursery's plant range and degradable Ellebag growing system." />
+    <title>{title}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style is:global>
+      * { box-sizing: border-box; }
+      body { font-family: 'Inter', sans-serif; }
+      .font-serif { font-family: 'Playfair Display', serif; }
+    </style>
+  </head>
+  <body class="bg-white text-stone-900 antialiased">
+    <a href="#main_body" class="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[60] focus:bg-[#f5f4ee] focus:px-4 focus:py-3 focus:text-[#1d3229] focus:shadow-lg">
+      Skip to content
+    </a>
+    <div class="site-announcement">
+      <p><strong>Planting season orders are open.</strong> {nurseryMeta.orderNotice}</p>
+      <a href={siteUrl('#contact')}>Plan your planting <span aria-hidden="true">↗</span></a>
+    </div>
+    <header class="sticky top-0 z-50 border-b border-[#e4e5dd] bg-[#fcfbf7]/95 backdrop-blur-md">
+      <nav class="mx-auto max-w-[1500px] px-6 py-3" aria-label="Main navigation">
+        <div class="flex items-center justify-between">
+          <a href={siteUrl('/')} class="flex items-center gap-3" aria-label="WaiNot Native Nursery Home">
+            <span class="grid h-9 w-9 place-items-center rounded-full bg-[#e7ebdf] text-[#294536]">
+              <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M19.5 4.5c-7.8.2-12.8 2.8-13.8 7.4-.7 3.3 1.8 5.8 4.9 5.1 4.8-1.1 7.8-6.4 8.9-12.5Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M4 21c2.2-5.5 5.9-8.8 11-11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+            </span>
+            <span class="flex flex-col leading-none">
+              <span class="font-serif text-lg font-semibold tracking-tight text-[#20392d]">WaiNot Natives</span>
+              <span class="mt-1 text-xs font-medium uppercase tracking-[.19em] text-[#74836f]">Native nursery · Rotorua</span>
+            </span>
+          </a>
+          
+          <div class="hidden items-center gap-6 lg:flex">
+            <a href={siteUrl('#catalogue')} class="text-xs font-medium text-[#526157] transition-colors hover:text-[#20392d]">Plant range</a>
+            <a href={siteUrl('#ellebag')} class="text-xs font-medium text-[#526157] transition-colors hover:text-[#20392d]">How we grow</a>
+            <a href={siteUrl('what-makes-us-different/')} class="text-xs font-medium text-[#526157] transition-colors hover:text-[#20392d]">Our difference</a>
+            <a href={siteUrl('#testimonials')} class="text-xs font-medium text-[#526157] transition-colors hover:text-[#20392d]">Stories</a>
+          </div>
+
+          <div class="hidden items-center gap-5 lg:flex">
+            <a href={`tel:${nurseryMeta.phoneSteph}`} class="text-xs font-medium text-[#526157] transition-colors hover:text-[#20392d]">{formatPhone(nurseryMeta.phoneSteph)}</a>
+            <a href={siteUrl('#contact')} class="inline-flex h-10 items-center justify-center gap-3 bg-[#294536] px-4 text-xs font-semibold text-white transition-colors hover:bg-[#20392d]">
+              Enquire <span aria-hidden="true">↗</span>
+            </a>
+          </div>
+
+          <button id="mobile-menu-button" class="grid h-10 w-10 place-items-center text-[#294536] lg:hidden" aria-label="Open navigation" aria-controls="mobile-menu" aria-expanded="false">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
+          </button>
+        </div>
+        <div id="mobile-menu" class="hidden border-t border-[#e4e5dd] pt-3 lg:hidden">
+          <div class="flex flex-col gap-1 pb-3">
+            <a href={siteUrl('#catalogue')} class="px-3 py-2 text-sm font-medium text-[#526157] hover:bg-[#eef0e9]">Plant range</a>
+            <a href={siteUrl('#ellebag')} class="px-3 py-2 text-sm font-medium text-[#526157] hover:bg-[#eef0e9]">How we grow</a>
+            <a href={siteUrl('what-makes-us-different/')} class="px-3 py-2 text-sm font-medium text-[#526157] hover:bg-[#eef0e9]">Our difference</a>
+            <a href={siteUrl('#testimonials')} class="px-3 py-2 text-sm font-medium text-[#526157] hover:bg-[#eef0e9]">Stories</a>
+            <a href={nurseryMeta.plantSelectionGuide} target="_blank" rel="noopener noreferrer" class="px-3 py-2 text-sm font-medium text-[#526157] hover:bg-[#eef0e9]">Plant selection guide ↗</a>
+          </div>
+          <a href={`mailto:${nurseryMeta.email}`} class="mb-3 inline-flex h-10 items-center justify-center bg-[#294536] px-4 text-sm font-semibold text-white">Email the nursery ↗</a>
+        </div>
+      </nav>
+    </header>
+
+    <main id="main_body">
+      <slot />
+    </main>
+
+    <footer class="border-t-4 border-[#829477] bg-[#f5f4ee] text-[#1d3229]">
+      <div class="max-w-7xl mx-auto px-6 py-16">
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-8 gap-y-8 lg:gap-x-12 lg:gap-y-10 mb-12">
+          <div class="sm:col-span-2">
+            <a href={siteUrl('/')} class="flex items-center gap-2 mb-4" aria-label="WaiNot Native Nursery Home">
+              <span class="font-serif text-2xl font-bold text-[#244437]">WaiNot Natives</span>
+              <span class="text-xs text-[#829477] font-medium">Nursery</span>
+            </a>
+            <p class="text-sm text-[#69766d] max-w-xs leading-relaxed">
+              Quality NZ Native Plants for every project. Rotorua based, we grow hardy, locally–proven NZ Native Plants in sustainable Ellebags.
+            </p>
+          </div>
+
+          <div class="sm:border-t sm:border-[#d9ded4] sm:pt-6">
+            <h4 class="text-xs font-semibold uppercase tracking-[0.14em] text-[#62765f] mb-4">Opening Hours</h4>
+            <p class="text-sm text-[#69766d]">Open by appointment only</p>
+            <p class="text-sm text-[#69766d] mt-1">Please phone ahead</p>
+          </div>
+
+          <div class="sm:border-t sm:border-[#d9ded4] sm:pt-6">
+            <h4 class="text-xs font-semibold uppercase tracking-[0.14em] text-[#62765f] mb-4">Contact</h4>
+            <address class="not-italic text-sm text-[#69766d] space-y-2">
+              <p>{nurseryMeta.address}</p>
+              <p><a href={`tel:${nurseryMeta.phoneSteph}`} class="hover:text-[#244437] transition-colors">027 291 6064 (Steph)</a></p>
+              <p><a href={`tel:${nurseryMeta.phoneSteve}`} class="hover:text-[#244437] transition-colors">027 475 1612 (Steve)</a></p>
+              <p><a href={`mailto:${nurseryMeta.email}`} class="break-all hover:text-[#244437] transition-colors">{nurseryMeta.email}</a></p>
+            </address>
+          </div>
+        </div>
+
+        <div class="flex flex-col lg:flex-row items-center justify-between gap-4 pt-8 border-t border-[#d9ded4]">
+          <p class="text-xs text-[#78847b]">Copyright © {new Date().getFullYear()} WaiNot Native Nursery</p>
+          <div class="flex items-center gap-6">
+            <a href="https://www.facebook.com/wainotnativenursery" target="_blank" rel="noopener noreferrer" class="text-[#78847b] hover:text-[#244437] transition-colors" aria-label="Facebook">
+              <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/></svg>
+            </a>
+            <a href="https://www.linkedin.com/company/wainot-natives-nursery" target="_blank" rel="noopener noreferrer" class="text-[#78847b] hover:text-[#244437] transition-colors" aria-label="LinkedIn">
+              <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M20 4.47v15.06a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4.47a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2zm-8 5h2v7h-2v-7zm-4.5 0a2.5 2.5 0 1 1 5 0 2.5 2.5 0 0 1-5 0zm9.5 7h-2v2h2v-2z"/></svg>
+            </a>
+            <a href="https://instagram.com/wainotnatives" target="_blank" rel="noopener noreferrer" class="text-[#78847b] hover:text-[#244437] transition-colors" aria-label="Instagram">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="20" rx="5" ry="5" stroke-width="2"/><path stroke-width="2" d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" y1="6.5" x2="17.51" y2="6.5" stroke-width="2"/></svg>
+            </a>
+          </div>
+        </div>
+      </div>
+    </footer>
+    <script>
+      const menuButton = document.querySelector<HTMLButtonElement>('#mobile-menu-button');
+      const mobileMenu = document.querySelector<HTMLDivElement>('#mobile-menu');
+
+      if (menuButton && mobileMenu) {
+        const closeMenu = () => {
+          menuButton.setAttribute('aria-expanded', 'false');
+          menuButton.setAttribute('aria-label', 'Open navigation');
+          mobileMenu.classList.add('hidden');
+        };
+
+        menuButton.addEventListener('click', () => {
+          const isExpanded = menuButton.getAttribute('aria-expanded') === 'true';
+          menuButton.setAttribute('aria-expanded', String(!isExpanded));
+          menuButton.setAttribute('aria-label', isExpanded ? 'Open navigation' : 'Close navigation');
+          mobileMenu.classList.toggle('hidden', isExpanded);
+        });
+
+        mobileMenu.addEventListener('click', (event) => {
+          if (event.target instanceof Element && event.target.closest('a')) closeMenu();
+        });
+
+        document.addEventListener('keydown', (event) => {
+          if (event.key === 'Escape' && menuButton.getAttribute('aria-expanded') === 'true') {
+            closeMenu();
+            menuButton.focus();
+          }
+        });
+      }
+    </script>
+  </body>
+</html>

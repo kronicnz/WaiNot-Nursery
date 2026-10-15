@@ -1,0 +1,276 @@
+@import "tailwindcss";
+
+:root {
+	--gutter: max(clamp(20px, 5.5vw, 72px), calc((100vw - 1280px) / 2));
+	--section-y: clamp(60px, 7.5vw, 100px);
+	--h2-size: clamp(2.5rem, 4.8vw, 3.875rem);
+	color-scheme: light;
+	scroll-behavior: smooth;
+	scroll-padding-top: 88px;
+	font-synthesis: none;
+	text-rendering: optimizeLegibility;
+	-webkit-font-smoothing: antialiased;
+	-moz-osx-font-smoothing: grayscale;
+}
+
+body {
+	min-width: 320px;
+	margin: 0;
+	background: #fcfbf7;
+}
+
+img {
+	max-width: 100%;
+}
+
+a {
+	text-underline-offset: 3px;
+}
+
+:focus-visible {
+	outline: 3px solid #91a77f;
+	outline-offset: 3px;
+}
+
+.site-announcement {
+	min-height: 42px;
+	padding: 8px var(--gutter);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 20px;
+	background: #244437;
+	color: #f5f4ee;
+	font-size: .75rem;
+	letter-spacing: .015em;
+}
+
+.site-announcement p {
+	margin: 0;
+}
+
+.site-announcement strong {
+	margin-right: 4px;
+	color: #d8e0c9;
+	font-weight: 700;
+}
+
+.site-announcement a {
+	flex: none;
+	color: white;
+	font-weight: 600;
+	text-decoration: none;
+}
+
+.site-announcement a span {
+	padding-left: 4px;
+	color: #cfddbf;
+}
+
+body > header {
+	box-shadow: 0 5px 22px rgba(29, 50, 41, .035);
+}
+
+body > header nav {
+	max-width: none;
+	padding-inline: var(--gutter);
+}
+
+body > footer > div {
+	max-width: none;
+	padding: clamp(48px, 6vw, 72px) var(--gutter);
+}
+
+body > header nav > div:first-child {
+	min-height: 54px;
+}
+
+body > header nav a {
+	transition: color .2s ease, background-color .2s ease, transform .2s ease;
+}
+
+body > header nav > div:first-child > a:first-child {
+	border-radius: 4px;
+}
+
+body > header nav > div:first-child > a:first-child > span:first-child {
+	width: 42px;
+	height: 42px;
+}
+
+body > header nav > div:first-child > a:first-child > span:last-child > span:first-child {
+	font-size: 1.125rem;
+}
+
+body > header nav a[href$="/what-makes-us-different/"] {
+	position: relative;
+}
+
+body > header nav a[href$="/what-makes-us-different/"]:hover {
+	color: #20392d;
+}
+
+body > header nav > div:first-child > a[href$="/#contact"] {
+	min-height: 42px;
+	padding-inline: 19px;
+	border-radius: 2px;
+	box-shadow: 0 5px 14px rgba(36, 68, 55, .15);
+}
+
+body > header nav > div:first-child > a[href$="/#contact"]:hover {
+	transform: translateY(-1px);
+	box-shadow: 0 8px 18px rgba(36, 68, 55, .2);
+}
+
+footer {
+	border-top-width: 1px !important;
+	border-top-color: #829477 !important;
+}
+
+footer address a, footer > div > div:last-child a {
+	transition: color .2s ease;
+}
+
+.nursery-photo-grid {
+	display: grid;
+	grid-template-columns: 1.18fr .82fr .82fr;
+	gap: 16px;
+}
+
+.nursery-photo-card {
+	position: relative;
+	min-width: 0;
+	height: 320px;
+	margin: 0;
+	overflow: hidden;
+	background: #e4e9de;
+	box-shadow: 0 12px 32px rgba(29, 50, 41, .09);
+}
+
+.nursery-photo-card::after {
+	position: absolute;
+	inset: 38% 0 0;
+	content: "";
+	background: linear-gradient(transparent, rgba(20, 39, 29, .75));
+	pointer-events: none;
+}
+
+.nursery-photo-card img {
+	display: block;
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+	transition: transform .7s cubic-bezier(.2, .7, .2, 1);
+}
+
+.nursery-photo-card--people img {
+	object-position: center 43%;
+}
+
+.nursery-photo-card--machine img {
+	object-position: center 50%;
+}
+
+.nursery-photo-card--nursery img {
+	object-position: center 52%;
+}
+
+.nursery-photo-card:hover img {
+	transform: scale(1.035);
+}
+
+.nursery-photo-card figcaption {
+	position: absolute;
+	z-index: 1;
+	right: 18px;
+	bottom: 16px;
+	left: 18px;
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	color: white;
+	font-size: .75rem;
+	font-weight: 600;
+	letter-spacing: .06em;
+	text-transform: uppercase;
+}
+
+.nursery-photo-card figcaption span:last-child {
+	font-size: 1rem;
+	transition: transform .2s ease;
+}
+
+.nursery-photo-card:hover figcaption span:last-child {
+	transform: translate(2px, -2px);
+}
+
+@media (max-width: 800px) {
+	.nursery-photo-grid {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		gap: 12px;
+	}
+
+	.nursery-photo-card {
+		height: 280px;
+	}
+
+	.nursery-photo-card--people {
+		grid-column: span 2;
+		height: 320px;
+	}
+}
+
+@media (max-width: 640px) {
+	:root {
+		scroll-padding-top: 72px;
+	}
+
+	.site-announcement {
+		padding: 9px 15px;
+		flex-wrap: wrap;
+		gap: 3px 12px;
+		text-align: center;
+		line-height: 1.5;
+	}
+
+	.site-announcement p {
+		max-width: 100%;
+	}
+
+	.site-announcement a {
+		font-size: .7rem;
+	}
+
+
+	body > header nav > div:first-child > a:first-child {
+		gap: 9px !important;
+	}
+
+	body > header nav > div:first-child > a:first-child > span:first-child {
+		width: 38px;
+		height: 38px;
+	}
+
+	.nursery-photo-grid {
+		grid-template-columns: 1fr;
+		gap: 12px;
+	}
+
+	.nursery-photo-card,
+	.nursery-photo-card--people {
+		height: 265px;
+		grid-column: auto;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	:root {
+		scroll-behavior: auto;
+	}
+
+	.nursery-photo-card img,
+	.nursery-photo-card figcaption span:last-child {
+		transition: none;
+	}
+}
