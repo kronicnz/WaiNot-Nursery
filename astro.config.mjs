@@ -8,7 +8,7 @@ import tailwindcss from '@tailwindcss/vite';
 export default defineConfig({
   integrations: [react()],
   site: 'https://kronicnz.github.io',
-  base: '/WaiNot-Nursery/', // <-- Double check that the "/" is present here!
+  base: '/WaiNot-Nursery', // <-- Double check that the "/" is present here!
 
 
   vite: {

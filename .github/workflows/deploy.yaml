@@ -2,7 +2,7 @@ name: Deploy to GitHub Pages
 
 on:
   push:
-    branches: [main] # Change this to master if your primary branch is called master
+    branches: [master]
   workflow_dispatch:
 
 permissions:
@@ -19,6 +19,8 @@ jobs:
 
       - name: Install, build, and upload your site output
         uses: withastro/action@v3
+        with:
+          node-version: 24
 
   deploy:
     needs: build
