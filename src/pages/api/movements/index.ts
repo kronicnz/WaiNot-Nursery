@@ -12,8 +12,8 @@ export const GET: APIRoute = async ({ locals, url }) => {
       batch_id: z.uuid().optional(),
       user_id: z.uuid().optional(),
       reason: z.enum(['receive', 'sale', 'adjust', 'transfer', 'loss', 'stocktake']).optional(),
-      from: z.string().date().optional(),
-      to: z.string().date().optional(),
+      from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+      to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
     }),
   );
   if ('error' in q) return q.error;
