@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api, type Me } from '../../lib/client/api';
-import { clearLocalData, flushQueue, listQueue } from '../../lib/client/offline';
+import { clearLocalData, flushQueue, listQueue, listTransferQueue, flushTransferQueue } from '../../lib/client/offline';
 import DashboardView from './DashboardView';
 import ManageView from './ManageView';
 import ActivityView from './ActivityView';
@@ -28,8 +28,9 @@ function NavIcon({ name }: { name: (typeof TABS)[number]['icon'] }) {
   return <svg viewBox="0 0 24 24" aria-hidden="true" {...common}><path d="M5 4h14v16H5zM8 8h8M8 12h8M8 16h4" /></svg>;
 }
 
-function SyncBanner({ online, pending, onSync }: { online: boolean; pending: number; onSync: () => Promise<void> }) {
-  if (online && pending === 0) return null;
+function SyncBanner({ online, pending, transferPending, isOwner, onSync }: { online: boolean; pending: number; transferPending?: number; isOwner?: boolean; onSync: () => Promise<void> }) {
+  const show = (online && (pending > 0 || (transferPending ?? 0) > 0)) || !online;
+  if (!show) return null;
   return (
     <div className={`mb-5 flex items-center justify-between gap-3 rounded-2xl border px-4 py-3 text-sm sm:px-5 ${online ? 'border-[#e6ddc4] bg-[#fbf7eb] text-[#695a34]' : 'border-[#f3d4d4] bg-[#fff0f0] text-[#9a3b3b]'}`}>
       <div className="flex items-center gap-2.5">
@@ -41,15 +42,24 @@ function SyncBanner({ online, pending, onSync }: { online: boolean; pending: num
         <span>
           <span className="block font-medium">{online ? 'Syncing…' : 'You are offline'}</span>
           <span className="block text-xs opacity-80">
-            {pending > 0 ? `${pending} scan${pending === 1 ? '' : 's'} waiting to sync` : 'Connect to the network to sync'}
+            {pending > 0 ? `${pending} scan${pending === 1 ? '' : 's'} waiting to sync` : ''}
+            {transferPending && transferPending > 0 && ` ${transferPending} transfer${transferPending === 1 ? '' : 's'} waiting to sync`}
+            {!pending && !(transferPending ?? 0) && 'Connect to the network to sync'}
           </span>
         </span>
       </div>
-      {online && pending > 0 && (
-        <button type="button" onClick={onSync} className="inline-flex min-h-9 items-center rounded-lg bg-[#6b5a1f] px-3 text-xs font-semibold text-white">
-          Sync now
-        </button>
-      )}
+      <div className="flex items-center gap-2">
+        {isOwner && transferPending && transferPending > 0 && (
+          <button type="button" onClick={() => { location.hash = 'manage:queued-transfers'; }} className="inline-flex items-center gap-2 rounded-lg border px-3 py-1 text-xs">
+            {transferPending} queued transfer{transferPending === 1 ? '' : 's'}
+          </button>
+        )}
+        {online && (pending > 0 || (transferPending ?? 0) > 0) && (
+          <button type="button" onClick={onSync} className="inline-flex min-h-9 items-center rounded-lg bg-[#6b5a1f] px-3 text-xs font-semibold text-white">
+            Sync now
+          </button>
+        )}
+      </div>
     </div>
   );
 }
@@ -57,24 +67,48 @@ function SyncBanner({ online, pending, onSync }: { online: boolean; pending: num
 export default function AdminApp() {
   const [me, setMe] = useState<Me | null>(null);
   const [tab, setTab] = useState<Tab>(() => {
-    const initial = location.hash.slice(1);
+    const initial = location.hash.slice(1).split(':')[0];
     return TABS.some((candidate) => candidate.id === initial) ? initial as Tab : 'dashboard';
   });
+  const [focusSection, setFocusSection] = useState<string | null>(null);
   const [online, setOnline] = useState<boolean>(navigator.onLine);
   const [pending, setPending] = useState(0);
+  const [transferPending, setTransferPending] = useState(0);
 
   useEffect(() => {
     api<Me>('/api/auth/me').then(setMe);
     if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => undefined);
   }, []);
-  useEffect(() => { location.hash = tab; }, [tab]);
+  useEffect(() => {
+    const hash = location.hash.slice(1);
+    const [t, rest] = hash.split(':');
+    if (t !== tab) location.hash = tab + (rest ? `:${rest}` : '');
+    window.scrollTo({ top: 0 });
+    const label = TABS.find((item) => item.id === tab)?.label ?? 'Overview';
+    document.title = `${label} · WaiNot Stock`;
+  }, [tab]);
+  useEffect(() => {
+    const onHash = () => {
+      const raw = location.hash.slice(1);
+      const [next, section] = raw.split(':');
+      if (TABS.some((candidate) => candidate.id === next)) {
+        setTab(next as Tab);
+        setFocusSection(section ?? null);
+      }
+    };
+    window.addEventListener('hashchange', onHash);
+    return () => window.removeEventListener('hashchange', onHash);
+  }, []);
 
   useEffect(() => {
     let alive = true;
     const refresh = async () => {
       if (!alive) return;
       setOnline(navigator.onLine);
-      try { setPending((await listQueue()).length); } catch { /* ignore */ }
+      try {
+        setPending((await listQueue()).length);
+        setTransferPending((await listTransferQueue()).length);
+      } catch { /* ignore */ }
     };
     const onOnline = () => { setOnline(true); refresh(); };
     const onOffline = () => { setOnline(false); refresh(); };
@@ -87,10 +121,12 @@ export default function AdminApp() {
   const syncNow = async () => {
     if (!navigator.onLine) return;
     const r = await flushQueue();
+    const tr = await flushTransferQueue();
     setPending(r.remaining);
+    setTransferPending(tr.remaining);
   };
 
-  if (!me) return <p className="p-6">Loading…</p>;
+  if (!me) return <p className="p-6 text-stone-500" role="status">Loading your workspace…</p>;
   const tabs = TABS.filter((t) => !('owner' in t) || me.role === 'owner');
   const pageTitle = TABS.find((item) => item.id === tab)?.label ?? 'Overview';
 
@@ -124,7 +160,8 @@ export default function AdminApp() {
             >
               <span className={`h-[18px] w-[18px] ${tab === item.id ? 'text-[#507956]' : 'text-[#89948a]'}`}><NavIcon name={item.icon} /></span>
               {item.label}
-              {item.id === 'dashboard' && <span className="ml-auto rounded-md bg-white px-1.5 py-0.5 text-[10px] text-[#789079]">Home</span>}
+              {item.id === 'scan' && pending > 0 && <span className="ml-auto rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-800" title="Scans waiting to sync">{pending}</span>}
+              {item.id === 'manage' && transferPending > 0 && <span className="ml-auto rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-800" title="Queued transfers">{transferPending}</span>}
             </button>
           ))}
         </nav>
@@ -156,13 +193,20 @@ export default function AdminApp() {
           </div>
         </header>
         <main className={`mx-auto px-4 pb-28 pt-6 sm:px-7 sm:pt-8 lg:px-9 lg:pb-10 ${tab === 'dashboard' ? 'max-w-[1440px]' : 'max-w-4xl'}`}>
-          <SyncBanner online={online} pending={pending} onSync={syncNow} />
+          <SyncBanner online={online} pending={pending} transferPending={transferPending} isOwner={me.role === 'owner'} onSync={syncNow} />
+          {tab !== 'dashboard' && <h1 className="mb-5 text-2xl font-semibold tracking-tight text-[#254432]">{pageTitle}</h1>}
           {tab === 'scan' && <ScanView role={me.role} />}
           {tab === 'products' && <ProductsView role={me.role} />}
-          {tab === 'dashboard' && <DashboardView role={me.role} onNavigate={setTab} />}
+          {tab === 'dashboard' && <DashboardView role={me.role} onNavigate={(target) => {
+            // target can be 'manage' or 'manage:locations' etc
+            const [t, section] = target.split(':');
+            setTab(t as Tab);
+            if (section) setFocusSection(section);
+            location.hash = target;
+          }} />}
           {tab === 'activity' && <ActivityView role={me.role} />}
           {tab === 'stocktake' && <StocktakeView role={me.role} />}
-          {tab === 'manage' && me.role === 'owner' && <ManageView meId={me.id} />}
+          {tab === 'manage' && me.role === 'owner' && <ManageView meId={me.id} focusSection={focusSection} onFocused={() => setFocusSection(null)} />}
         </main>
       </div>
 
@@ -176,7 +220,11 @@ export default function AdminApp() {
               aria-current={tab === item.id ? 'page' : undefined}
               className={`flex min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-xl py-2 text-[10px] font-medium transition ${tab === item.id ? 'text-[#3e7048]' : 'text-[#89948a]'}`}
             >
-              <span className={`h-[19px] w-[19px] ${tab === item.id ? 'text-[#4c7b52]' : ''}`}><NavIcon name={item.icon} /></span>
+              <span className={`relative h-[19px] w-[19px] ${tab === item.id ? 'text-[#4c7b52]' : ''}`}>
+                <NavIcon name={item.icon} />
+                {item.id === 'scan' && pending > 0 && <span className="absolute -right-2 -top-1.5 min-w-4 rounded-full bg-amber-500 px-1 text-center text-[9px] font-bold leading-4 text-white">{pending}</span>}
+                {item.id === 'manage' && transferPending > 0 && <span className="absolute -right-2 -top-1.5 min-w-4 rounded-full bg-amber-500 px-1 text-center text-[9px] font-bold leading-4 text-white">{transferPending}</span>}
+              </span>
               <span className="truncate">{item.label === 'Stock movement' ? 'Scan' : item.label === 'Stocktake' ? 'Count' : item.label}</span>
             </button>
           ))}

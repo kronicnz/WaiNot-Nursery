@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ApiError, api, isNetworkError, type Product } from '../../lib/client/api';
-import { enqueue, flushQueue, listQueue, lookupOffline, refreshCatalog } from '../../lib/client/offline';
+import { enqueue, enqueueTransfer, flushQueue, flushTransferQueue, listQueue, listTransferQueue, lookupOffline, refreshCatalog } from '../../lib/client/offline';
 import Scanner from './Scanner';
 import { Btn, Msg, inputCls } from './ui';
 
-type Mode = 'in' | 'out';
+type Mode = 'in' | 'out' | 'transfer';
 
 export default function ScanView({ role }: { role: 'owner' | 'staff' }) {
   const [mode, setMode] = useState<Mode>('out');
@@ -20,11 +20,22 @@ export default function ScanView({ role }: { role: 'owner' | 'staff' }) {
   const [busy, setBusy] = useState(false);
   const online = useRef(navigator.onLine);
 
+  // Transfer-specific state
+  const [locations, setLocations] = useState<{ id: string; name: string; kind: string }[]>([]);
+  const [fromLocation, setFromLocation] = useState('');
+  const [toLocation, setToLocation] = useState('');
+  const [transferQty, setTransferQty] = useState(1);
+  const [transferring, setTransferring] = useState(false);
+  const [transferMsg, setTransferMsg] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null);
+  const [transferPending, setTransferPending] = useState(0);
+
   const syncNow = useCallback(async () => {
     if (!navigator.onLine) return;
     const r = await flushQueue();
+    const tr = await flushTransferQueue();
     setPending(r.remaining);
-    if (r.sent) setMsg({ kind: 'ok', text: `Synced ${r.sent} offline scan(s)` });
+    setTransferPending(tr.remaining);
+    if (r.sent || tr.sent) setMsg({ kind: 'ok', text: `Synced ${r.sent} scan(s) and ${tr.sent} transfer(s)` });
   }, []);
 
   useEffect(() => {
@@ -34,8 +45,19 @@ export default function ScanView({ role }: { role: 'owner' | 'staff' }) {
       } catch {
         /* offline: use cached */
       }
-      setPending((await listQueue()).length);
+      const qCount = (await listQueue()).length;
+      const tCount = (await listTransferQueue()).length;
+      setPending(qCount);
+      setTransferPending(tCount);
       syncNow();
+
+      // load locations for transfer mode
+      try {
+        const locs = await api<any[]>('/api/locations?active=1');
+        setLocations(locs);
+      } catch {
+        setLocations([]);
+      }
     })();
     const on = () => {
       online.current = true;
@@ -94,16 +116,81 @@ export default function ScanView({ role }: { role: 'owner' | 'staff' }) {
     }
   };
 
+  // Transfer submit
+  const submitTransfer = async () => {
+    setTransferMsg(null);
+    if (!product) return setTransferMsg({ kind: 'err', text: 'Select a product first (scan or search).' });
+    if (!fromLocation || !toLocation || fromLocation === toLocation) return setTransferMsg({ kind: 'err', text: 'Choose two different locations.' });
+    if (!navigator.onLine) return setTransferMsg({ kind: 'err', text: 'Transfers require a network connection.' });
+    const n = Number(transferQty);
+    if (!Number.isInteger(n) || n <= 0) return setTransferMsg({ kind: 'err', text: 'Invalid quantity' });
+    setTransferring(true);
+    try {
+      await api('/api/transfers', {
+        method: 'POST',
+        json: {
+          product_id: product.id,
+          batch_id: batchId || null,
+          from_location_id: fromLocation,
+          to_location_id: toLocation,
+          qty: n,
+          note: note || null,
+          client_op_id: crypto.randomUUID(),
+        },
+      });
+      setTransferMsg({ kind: 'ok', text: `Moved ${n} × ${product.name} from ${locations.find((l) => l.id === fromLocation)?.name ?? 'from'} to ${locations.find((l) => l.id === toLocation)?.name ?? 'to'}.` });
+      setProduct(null);
+      setFromLocation('');
+      setToLocation('');
+      setTransferQty(1);
+      // refresh catalog/parent data
+      try { await refreshCatalog(); } catch { /* ignore */ }
+    } catch (e) {
+      setTransferMsg({ kind: 'err', text: (e as Error).message });
+    } finally {
+      setTransferring(false);
+    }
+  };
+
+  // enqueue transfer when offline
+  const enqueueTransferLocal = async () => {
+    if (!product) return setTransferMsg({ kind: 'err', text: 'Select a product first (scan or search).' });
+    if (!fromLocation || !toLocation || fromLocation === toLocation) return setTransferMsg({ kind: 'err', text: 'Choose two different locations.' });
+    const n = Number(transferQty);
+    if (!Number.isInteger(n) || n <= 0) return setTransferMsg({ kind: 'err', text: 'Invalid quantity' });
+    try {
+      await enqueueTransfer({
+        client_op_id: crypto.randomUUID(),
+        product_id: product.id,
+        batch_id: batchId || null,
+        from_location_id: fromLocation,
+        to_location_id: toLocation,
+        qty: n,
+        note: note || null,
+        queued_at: Date.now(),
+        product_name: product.name,
+      });
+      setTransferMsg({ kind: 'ok', text: `Offline: queued transfer of ${n} × ${product.name}` });
+      setProduct(null);
+      setFromLocation('');
+      setToLocation('');
+      setTransferQty(1);
+      setTransferPending((await listTransferQueue()).length);
+    } catch (e) {
+      setTransferMsg({ kind: 'err', text: (e as Error).message });
+    }
+  };
+
   return (
     <div className="space-y-3">
-      <div className="grid grid-cols-2 gap-2">
-        {(['out', 'in'] as const).map((m) => (
+      <div className="grid grid-cols-3 gap-2">
+        {(['out', 'in', 'transfer'] as const).map((m) => (
           <button
             key={m}
             onClick={() => setMode(m)}
-            className={`rounded-xl py-3 text-lg font-semibold ${mode === m ? (m === 'in' ? 'bg-green-600 text-white' : 'bg-orange-600 text-white') : 'bg-stone-200'}`}
+            className={`rounded-xl py-3 text-lg font-semibold ${mode === m ? (m === 'in' ? 'bg-green-600 text-white' : m === 'out' ? 'bg-orange-600 text-white' : 'bg-green-700 text-white') : 'bg-stone-200'}`}
           >
-            {m === 'in' ? 'Stock IN' : 'Stock OUT'}
+            {m === 'in' ? 'Stock IN' : m === 'out' ? 'Stock OUT' : 'Transfer'}
           </button>
         ))}
       </div>
@@ -122,9 +209,11 @@ export default function ScanView({ role }: { role: 'owner' | 'staff' }) {
         <Btn type="submit">Find</Btn>
       </form>
 
-      {pending > 0 && (
+      {(pending > 0 || transferPending > 0) && (
         <p className="rounded-lg bg-amber-100 p-2 text-sm">
-          {pending} scan(s) waiting to sync. <button className="underline" onClick={syncNow}>Sync now</button>
+          {pending > 0 && <span>{pending} scan(s) waiting to sync. </span>}
+          {transferPending > 0 && <span>{transferPending} transfer(s) waiting to sync. </span>}
+          <button className="underline" onClick={syncNow}>Sync now</button>
         </p>
       )}
       {msg && <Msg kind={msg.kind}>{msg.text}</Msg>}
@@ -166,32 +255,74 @@ export default function ScanView({ role }: { role: 'owner' | 'staff' }) {
               ))}
             </select>
           )}
-          {mode === 'out' && (
-            <select className={inputCls} value={reason} onChange={(e) => setReason(e.target.value as 'sale' | 'loss')} aria-label="Reason">
-              <option value="sale">Sale</option>
-              <option value="loss">Loss / damaged</option>
-            </select>
+          {mode === 'transfer' ? (
+            <>
+              <div className="grid grid-cols-2 gap-2">
+                <label className="block text-sm">
+                        <span className="mb-1 block text-stone-600">From location <span title="Origin of the goods. Locations are internal storage places (bench, tunnel, shadehouse, shop)." className="ml-1 inline-block text-xs text-stone-400">?</span></span>
+                  <select className={inputCls} value={fromLocation} onChange={(e) => setFromLocation(e.target.value)}>
+                    <option value="">Choose origin</option>
+                    {locations.map((l) => <option key={l.id} value={l.id}>{l.name} · {l.kind}</option>)}
+                  </select>
+                </label>
+                <label className="block text-sm">
+                        <span className="mb-1 block text-stone-600">To location <span title="Destination of the goods. Deactivated locations are hidden by default." className="ml-1 inline-block text-xs text-stone-400">?</span></span>
+                  <select className={inputCls} value={toLocation} onChange={(e) => setToLocation(e.target.value)}>
+                    <option value="">Choose destination</option>
+                    {locations.map((l) => <option key={l.id} value={l.id}>{l.name} · {l.kind}</option>)}
+                  </select>
+                </label>
+              </div>
+              <div className="flex items-center justify-center gap-4">
+                <Btn onClick={() => setTransferQty((q) => Math.max(1, q - 1))}>−</Btn>
+                <input
+                  className="w-20 rounded-lg border p-2 text-center text-2xl"
+                  type="number"
+                  inputMode="numeric"
+                  min={1}
+                  max={100000}
+                  value={transferQty}
+                  onChange={(e) => setTransferQty(Math.min(100000, Math.max(1, parseInt(e.target.value, 10) || 1)))}
+                />
+                <Btn onClick={() => setTransferQty((q) => Math.min(100000, q + 1))}>+</Btn>
+              </div>
+              <input className={inputCls} placeholder="Note (optional)" maxLength={500} value={note} onChange={(e) => setNote(e.target.value)} />
+              {transferMsg && <Msg kind={transferMsg.kind}>{transferMsg.text}</Msg>}
+              <div className="grid grid-cols-2 gap-2">
+                <Btn onClick={() => { setProduct(null); setFromLocation(''); setToLocation(''); setTransferQty(1); setTransferMsg(null); }}>Cancel</Btn>
+                <Btn primary disabled={transferring} onClick={navigator.onLine ? submitTransfer : enqueueTransferLocal}>{transferring ? 'Moving…' : navigator.onLine ? 'Move stock' : 'Queue transfer'}</Btn>
+              </div>
+            </>
+          ) : (
+            <>
+              {mode === 'out' && (
+                <select className={inputCls} value={reason} onChange={(e) => setReason(e.target.value as 'sale' | 'loss')} aria-label="Reason">
+                  <option value="sale">Sale</option>
+                  <option value="loss">Loss / damaged</option>
+                </select>
+              )}
+              <div className="flex items-center justify-center gap-4">
+                <Btn onClick={() => setQty((q) => Math.max(1, q - 1))}>−</Btn>
+                <input
+                  className="w-20 rounded-lg border p-2 text-center text-2xl"
+                  type="number"
+                  inputMode="numeric"
+                  min={1}
+                  max={100000}
+                  value={qty}
+                  onChange={(e) => setQty(Math.min(100000, Math.max(1, parseInt(e.target.value, 10) || 1)))}
+                />
+                <Btn onClick={() => setQty((q) => Math.min(100000, q + 1))}>+</Btn>
+              </div>
+              <input className={inputCls} placeholder="Note (optional)" maxLength={500} value={note} onChange={(e) => setNote(e.target.value)} />
+              <div className="grid grid-cols-2 gap-2">
+                <Btn onClick={() => setProduct(null)}>Cancel</Btn>
+                <Btn primary disabled={busy} onClick={confirm}>
+                  Confirm {mode === 'in' ? 'IN' : 'OUT'}
+                </Btn>
+              </div>
+            </>
           )}
-          <div className="flex items-center justify-center gap-4">
-            <Btn onClick={() => setQty((q) => Math.max(1, q - 1))}>−</Btn>
-            <input
-              className="w-20 rounded-lg border p-2 text-center text-2xl"
-              type="number"
-              inputMode="numeric"
-              min={1}
-              max={100000}
-              value={qty}
-              onChange={(e) => setQty(Math.min(100000, Math.max(1, parseInt(e.target.value, 10) || 1)))}
-            />
-            <Btn onClick={() => setQty((q) => Math.min(100000, q + 1))}>+</Btn>
-          </div>
-          <input className={inputCls} placeholder="Note (optional)" maxLength={500} value={note} onChange={(e) => setNote(e.target.value)} />
-          <div className="grid grid-cols-2 gap-2">
-            <Btn onClick={() => setProduct(null)}>Cancel</Btn>
-            <Btn primary disabled={busy} onClick={confirm}>
-              Confirm {mode === 'in' ? 'IN' : 'OUT'}
-            </Btn>
-          </div>
         </div>
       )}
     </div>

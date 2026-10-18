@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api, type Category, type Product } from '../../lib/client/api';
 import Scanner from './Scanner';
-import { Btn, Field, Msg, inputCls } from './ui';
+import { Btn, Field, Msg, Section, inputCls } from './ui';
 
 const blank = { sku: '', name: '', botanical_name: '', pot_size: '', price: '', reorder_level: '20', public_description: '', public_image_url: '', public_image_alt: '', notes: '', category_id: '' };
 const priceFormat = new Intl.NumberFormat('en-NZ', { style: 'currency', currency: 'NZD' });
@@ -149,7 +149,12 @@ function ProductForm({ product, categories, onDone }: { product: Product | null;
   };
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
+      <div className="flex items-center gap-3">
+        <button type="button" onClick={onDone} className="rounded-lg px-2 py-1 text-sm text-stone-600 hover:bg-stone-200" aria-label="Back to products">← Products</button>
+        <h2 className="min-w-0 truncate text-lg font-semibold text-[#2f4a37]">{product ? product.name : 'New product'}</h2>
+      </div>
+      <Section title="Basics" hint="What this plant is and how it is sold.">
       <Field label="SKU"><input className={inputCls} value={f.sku} onChange={set('sku')} maxLength={64} /></Field>
       <Field label="Name"><input className={inputCls} value={f.name} onChange={set('name')} maxLength={200} /></Field>
       <Field label="Botanical name"><input className={inputCls} value={f.botanical_name} onChange={set('botanical_name')} /></Field>
@@ -165,13 +170,18 @@ function ProductForm({ product, categories, onDone }: { product: Product | null;
         </Field>
       </div>
       {categories.length === 0 && <Msg kind="err">Create a category in Setup before adding a product.</Msg>}
+      </Section>
+      <Section title="Website listing" hint="Shown on the public site.">
       <Field label="Website description"><textarea className={inputCls} value={f.public_description} onChange={set('public_description')} maxLength={3000} /></Field>
       <Field label="Website image URL"><input className={inputCls} type="url" value={f.public_image_url} onChange={set('public_image_url')} /></Field>
       <Field label="Website image description"><input className={inputCls} value={f.public_image_alt} onChange={set('public_image_alt')} maxLength={300} /></Field>
+      </Section>
+      <Section title="Internal notes">
       <Field label="Notes"><textarea className={inputCls} value={f.notes} onChange={set('notes')} maxLength={2000} /></Field>
+      </Section>
 
-      <div className="space-y-2">
-        <p className="text-sm text-stone-600">Barcodes</p>
+      <Section title="Barcodes" hint="Scan or type codes that identify this product.">
+        {barcodes.length === 0 && <p className="text-sm text-stone-500">No barcodes yet.</p>}
         {barcodes.map((b) => (
           <div key={b} className="flex items-center justify-between rounded bg-stone-100 px-3 py-2">
             <code className="break-all">{b}</code>
@@ -181,18 +191,14 @@ function ProductForm({ product, categories, onDone }: { product: Product | null;
         <div className="flex flex-col gap-2 sm:flex-row">
           <input className={inputCls} value={newCode} onChange={(e) => setNewCode(e.target.value)} placeholder="Enter or scan barcode" />
           <Btn onClick={() => addCode(newCode)}>Add</Btn>
-          <Btn onClick={() => setScanning(!scanning)}>Scan</Btn>
+          <Btn onClick={() => setScanning(!scanning)}>{scanning ? 'Close scanner' : 'Scan'}</Btn>
         </div>
         {scanning && <Scanner onScan={(c) => { addCode(c); setScanning(false); }} />}
-      </div>
+      </Section>
 
       {product && (
         <>
-          <section className="space-y-3 rounded-xl border bg-stone-50 p-3">
-            <div>
-              <h3 className="font-semibold">On-hand stock</h3>
-              <p className="text-sm text-stone-600">Set the counted quantity for one plant batch. Counts are recorded as audited adjustments.</p>
-            </div>
+          <Section title="On-hand stock" hint="Set the counted quantity for one plant batch. Counts are recorded as audited adjustments.">
             {stockLoading ? (
               <p className="text-sm text-stone-500">Loading stock levels…</p>
             ) : (
@@ -229,12 +235,11 @@ function ProductForm({ product, categories, onDone }: { product: Product | null;
               </>
             )}
             {stockMsg && <Msg kind={stockMsg.kind}>{stockMsg.text}</Msg>}
-          </section>
-          <Field label="Photo (JPEG/PNG/WebP, max 5MB)">
+          </Section>
+          <Section title="Photo" hint="JPEG, PNG or WebP, max 5MB. Uploading saves immediately.">
             <input type="file" accept="image/jpeg,image/png,image/webp" capture="environment" onChange={(e) => upload(e.target.files?.[0])} />
-          </Field>
-          <div className="space-y-2">
-            <p className="text-sm text-stone-600">Batches (plant age)</p>
+          </Section>
+          <Section title="Batches (plant age)" hint="Track groups of plants potted at the same time.">
             <div className="space-y-2">{batches.map((b) => (
               <div key={b.id} className="rounded bg-stone-100 px-3 py-2 text-sm">
                 <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between sm:gap-2">
@@ -266,20 +271,20 @@ function ProductForm({ product, categories, onDone }: { product: Product | null;
               <input className={inputCls} type="date" aria-label="Batch potting date" value={newBatchDate} onChange={(e) => setNewBatchDate(e.target.value)} />
               <Btn onClick={addBatch}>Add batch</Btn>
             </div>
-          </div>
+          </Section>
         </>
       )}
 
       {err && <Msg kind="err">{err}</Msg>}
-      <div className="grid grid-cols-2 gap-2">
-        <Btn onClick={onDone}>Cancel</Btn>
-        <Btn primary disabled={categories.length === 0 || !f.category_id} onClick={save}>Save</Btn>
-      </div>
       {product && (
         <Btn className="w-full text-red-700" onClick={async () => { if (confirm('Archive this product?')) { await api(`/api/products/${product.id}`, { method: 'DELETE' }); onDone(); } }}>
           Archive product
         </Btn>
       )}
+      <div className="sticky bottom-20 z-10 -mx-1 grid grid-cols-2 gap-2 rounded-2xl border border-[#e6ebe3] bg-white/95 p-2 shadow-lg backdrop-blur lg:bottom-4">
+        <Btn onClick={onDone}>Cancel</Btn>
+        <Btn primary disabled={categories.length === 0 || !f.category_id || !f.sku.trim() || !f.name.trim()} onClick={save}>Save product</Btn>
+      </div>
     </div>
   );
 }
@@ -290,14 +295,20 @@ export default function ProductsView({ role }: { role: 'owner' | 'staff' }) {
   const [q, setQ] = useState('');
   const [editing, setEditing] = useState<Product | 'new' | null>(null);
   const [err, setErr] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState<'all' | 'low'>('all');
+  const [categoryId, setCategoryId] = useState('');
 
   const load = useCallback(async () => {
     try {
+      setErr('');
       const r = await api<{ items: Product[] }>(`/api/products?limit=100&q=${encodeURIComponent(q)}`);
       setItems(r.items);
       setCategories(await api<Category[]>('/api/categories'));
     } catch (e) {
       setErr((e as Error).message);
+    } finally {
+      setLoading(false);
     }
   }, [q]);
   useEffect(() => {
@@ -309,19 +320,37 @@ export default function ProductsView({ role }: { role: 'owner' | 'staff' }) {
     return <ProductForm product={editing === 'new' ? null : editing} categories={categories} onDone={() => { setEditing(null); load(); }} />;
   }
 
+  const isLow = (p: Product) => p.reorder_level > 0 && (p.total_qty ?? 0) <= p.reorder_level;
+  const visible = items.filter((p) => (filter === 'all' || isLow(p)) && (!categoryId || p.category_id === categoryId));
+  const lowCount = items.filter(isLow).length;
+  const filtered = Boolean(q) || filter === 'low' || Boolean(categoryId);
+  const chip = (active: boolean) => `rounded-full border px-3 py-1.5 text-sm transition ${active ? 'border-green-700 bg-green-700 text-white' : 'border-stone-300 bg-white text-stone-700 hover:bg-stone-100'}`;
+
   return (
     <div className="space-y-3">
       <div className="flex flex-col gap-2 sm:flex-row">
-        <input className={inputCls} placeholder="Search name, SKU, botanical…" value={q} onChange={(e) => setQ(e.target.value)} />
-        {role === 'owner' && <Btn primary onClick={() => setEditing('new')}>Add</Btn>}
+        <input className={inputCls} type="search" aria-label="Search products" placeholder="Search name, SKU, botanical…" value={q} onChange={(e) => setQ(e.target.value)} />
+        {role === 'owner' && <Btn primary className="shrink-0" onClick={() => setEditing('new')}>+ Add product</Btn>}
       </div>
+      <div className="flex flex-wrap items-center gap-2">
+        <button type="button" className={chip(filter === 'all')} onClick={() => setFilter('all')}>All</button>
+        <button type="button" className={chip(filter === 'low')} onClick={() => setFilter('low')}>Low stock{lowCount > 0 ? ` (${lowCount})` : ''}</button>
+        {categories.length > 0 && (
+          <select className="rounded-full border border-stone-300 bg-white px-3 py-1.5 text-sm" aria-label="Filter by category" value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>
+            <option value="">All categories</option>
+            {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+          </select>
+        )}
+        <span className="ml-auto text-xs text-stone-500" aria-live="polite">{visible.length} product{visible.length === 1 ? '' : 's'}</span>
+      </div>
+      {role !== 'owner' && <p className="text-xs text-stone-500">View only — ask an owner to edit products.</p>}
       {err && <Msg kind="err">{err}</Msg>}
       <ul className="space-y-2">
-        {items.map((p) => {
+        {visible.map((p) => {
           const imageSrc = p.image_path ? `/api/products/${p.id}/image` : p.public_image_url;
           return (
             <li key={p.id}>
-              <button className="flex w-full items-center gap-3 rounded-xl border bg-white p-3 text-left" onClick={() => setEditing(p)} disabled={role !== 'owner'}>
+              <button className="flex w-full items-center gap-3 rounded-xl border border-[#e6ebe3] bg-white p-3 text-left transition enabled:hover:border-green-600 enabled:hover:shadow-sm" onClick={() => setEditing(p)} disabled={role !== 'owner'}>
                 {imageSrc ? (
                   <img
                     src={imageSrc}
@@ -340,13 +369,19 @@ export default function ProductsView({ role }: { role: 'owner' | 'staff' }) {
                 </div>
                 <span className="text-right">
                   <span className="block text-sm font-medium">{p.price === null ? 'Price unset' : priceFormat.format(p.price)}</span>
-                  <span className={`mt-1 inline-block rounded-full px-3 py-1 text-sm ${p.reorder_level > 0 && (p.total_qty ?? 0) <= p.reorder_level ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'}`}>{p.total_qty ?? 0}</span>
+                  <span className={`mt-1 inline-block rounded-full px-3 py-1 text-sm ${isLow(p) ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'}`}>{p.total_qty ?? 0}</span>
                 </span>
               </button>
             </li>
           );
         })}
-        {items.length === 0 && <li className="text-stone-500">No products found.</li>}
+        {loading && <li className="text-stone-500">Loading products…</li>}
+        {!loading && visible.length === 0 && (
+          <li className="rounded-xl border border-dashed border-stone-300 p-6 text-center text-sm text-stone-500">
+            {filtered ? 'No products match your filters.' : 'No products yet.'}
+            {filtered && <button type="button" className="ml-2 underline" onClick={() => { setQ(''); setFilter('all'); setCategoryId(''); }}>Clear filters</button>}
+          </li>
+        )}
       </ul>
     </div>
   );

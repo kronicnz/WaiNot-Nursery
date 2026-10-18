@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
-import { api, type Category, type Location, type Product } from '../../lib/client/api';
+import { api, type Category, type Product } from '../../lib/client/api';
 import { Msg } from './ui';
 
 interface Low { product_id: string; sku: string; name: string; reorder_level: number; total_qty: number }
@@ -14,13 +14,12 @@ interface Mov {
   locations: { name: string } | null;
 }
 type WorkflowTab = 'manage' | 'products' | 'scan' | 'stocktake' | 'activity';
-type BatchFilter = 'all' | 'low' | 'empty';
+type BatchFilter = 'all' | 'attention' | 'low' | 'empty';
 
 const numberFormat = new Intl.NumberFormat('en-NZ');
 
-function Icon({ name, className = 'h-5 w-5' }: { name: 'leaf' | 'plant' | 'layers' | 'box' | 'arrow' | 'search' | 'refresh' | 'alert' | 'clock' | 'plus' | 'scan' | 'check' | 'transfer' | 'archive' | 'edit'; className?: string }) {
+function Icon({ name, className = 'h-5 w-5' }: { name: 'plant' | 'layers' | 'box' | 'arrow' | 'search' | 'refresh' | 'alert' | 'clock' | 'plus' | 'scan' | 'check'; className?: string }) {
   const paths: Record<typeof name, ReactNode> = {
-    leaf: <><path d="M20 4c-8 0-14 3-14 10a6 6 0 0 0 6 6c7 0 10-6 8-16Z" /><path d="M4 21c2-5 6-9 12-12" /></>,
     plant: <><path d="M12 21v-9" /><path d="M12 12C5 12 4 7 4 4c5 0 8 2 8 8Z" /><path d="M12 15c0-5 3-8 8-8 0 5-2 8-8 8Z" /><path d="M6 21h12" /></>,
     layers: <><path d="m12 3 9 5-9 5-9-5 9-5Z" /><path d="m3 12 9 5 9-5" /><path d="m3 16 9 5 9-5" /></>,
     box: <><path d="m4 7 8-4 8 4-8 4-8-4Z" /><path d="M4 7v10l8 4 8-4V7" /><path d="M12 11v10" /></>,
@@ -32,9 +31,6 @@ function Icon({ name, className = 'h-5 w-5' }: { name: 'leaf' | 'plant' | 'layer
     plus: <><path d="M12 5v14M5 12h14" /></>,
     scan: <><path d="M4 7V5a1 1 0 0 1 1-1h2M17 4h2a1 1 0 0 1 1 1v2M20 17v2a1 1 0 0 1-1 1h-2M7 20H5a1 1 0 0 1-1-1v-2" /><path d="M7 12h10" /></>,
     check: <><path d="m5 12 4 4L19 6" /></>,
-    transfer: <><path d="M3 12h14" /><path d="m9 6-3 3 3 3" /><path d="M21 12H7" /><path d="m15 18 3-3-3-3" /></>,
-    archive: <><path d="M4 4h16v6H4z" /><path d="M4 10v10h16V10" /><path d="M9 14h6" /></>,
-    edit: <><path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" /></>,
   };
   return <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" className={className}>{paths[name]}</svg>;
 }
@@ -55,11 +51,10 @@ export default function DashboardView({
   onNavigate,
 }: {
   role: 'owner' | 'staff';
-  onNavigate: (tab: WorkflowTab) => void;
+  onNavigate: (target: WorkflowTab) => void;
 }) {
   const [categories, setCategories] = useState<Category[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
-  const [locations, setLocations] = useState<Location[]>([]);
   const [low, setLow] = useState<Low[]>([]);
   const [moves, setMoves] = useState<Mov[]>([]);
   const [err, setErr] = useState('');
@@ -72,18 +67,22 @@ export default function DashboardView({
     setLoading(true);
     setErr('');
     try {
-      const [categoryRows, productRows, lowRows, movementRows, locationRows] = await Promise.all([
+      const [categoryRows, firstProductPage, lowRows, movementRows] = await Promise.all([
         api<Category[]>('/api/categories'),
-        api<{ items: Product[] }>('/api/products?limit=100'),
+        api<{ items: Product[]; total: number }>('/api/products?limit=100'),
         api<Low[]>('/api/stock/low'),
         api<{ items: Mov[] }>('/api/movements?limit=8'),
-        api<Location[]>('/api/locations?active=1'),
       ]);
+      const productPages = await Promise.all(
+        Array.from(
+          { length: Math.max(0, Math.ceil(firstProductPage.total / 100) - 1) },
+          (_, index) => api<{ items: Product[] }>(`/api/products?limit=100&offset=${(index + 1) * 100}`),
+        ),
+      );
       setCategories(categoryRows);
-      setProducts(productRows.items);
+      setProducts([firstProductPage, ...productPages].flatMap((page) => page.items));
       setLow(lowRows);
       setMoves(movementRows.items);
-      setLocations(locationRows);
       setUpdatedAt(new Date());
     } catch (e) {
       setErr((e as Error).message);
@@ -130,7 +129,11 @@ export default function DashboardView({
   const completeSteps = workflow.filter((step) => step.complete).length;
   const nextStep = workflow.find((step) => !step.complete);
   const filteredBatches = activeBatches.filter((batch) => {
-    const matchesFilter = filter === 'all' || (filter === 'empty' ? batch.qty === 0 : batch.qty > 0 && batch.reorder_level > 0 && batch.qty <= batch.reorder_level);
+    const isLow = batch.qty > 0 && batch.reorder_level > 0 && batch.qty <= batch.reorder_level;
+    const matchesFilter = filter === 'all'
+      || (filter === 'attention' && (batch.qty === 0 || isLow))
+      || (filter === 'empty' && batch.qty === 0)
+      || (filter === 'low' && isLow);
     const query = search.trim().toLowerCase();
     const matchesSearch = !query || `${batch.product_name} ${batch.product_sku} ${batch.batch_code}`.toLowerCase().includes(query);
     return matchesFilter && matchesSearch;
@@ -166,25 +169,24 @@ export default function DashboardView({
 
       <nav aria-label="Quick actions" className="grid grid-cols-1 gap-2 sm:grid-cols-3">
         {([
-          ['scan', 'Move stock', 'Scan in, out or adjust', 'scan', true],
-          ['stocktake', 'Stocktake', 'Count and reconcile', 'check', false],
-          ['products', 'Products', 'Plants, batches & labels', 'plant', false],
-        ] as const).map(([tab, title, hint, icon, primary]) => (
+          ['scan', 'Move stock', 'Scan in, out or adjust', 'scan'],
+          ['stocktake', 'Stocktake', 'Count and reconcile', 'check'],
+          ['products', 'Products', 'Plants, batches & labels', 'plant'],
+        ] as const).map(([tab, title, hint, icon]) => (
           <button
             key={tab}
             type="button"
             onClick={() => onNavigate(tab)}
-            className={`group flex items-center gap-3 rounded-2xl border p-3.5 text-left shadow-sm transition hover:-translate-y-0.5 ${primary ? 'border-[#2c5a3e] bg-[#2c5a3e] text-white hover:bg-[#244d34]' : 'border-[#e5e9e2] bg-white text-[#26392d] hover:border-[#c9d6c6]'}`}
+            className="group flex items-center gap-3 rounded-2xl border border-[#2c5a3e] bg-[#2c5a3e] p-3.5 text-left text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-[#244d34] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#2c5a3e]"
           >
-            <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${primary ? 'bg-white/15' : 'bg-[#eef5ed] text-[#4d7952]'}`}><Icon name={icon} /></span>
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/15"><Icon name={icon} /></span>
             <span className="min-w-0 flex-1">
               <span className="block text-sm font-semibold">{title}</span>
-              <span className={`block truncate text-xs ${primary ? 'text-[#d3e3d4]' : 'text-[#7c887e]'}`}>{hint}</span>
+              <span className="block truncate text-xs text-[#d3e3d4]">{hint}</span>
             </span>
             <Icon name="arrow" className="h-4 w-4 transition-transform group-hover:translate-x-1" />
           </button>
         ))}
-        <TransferCard role={role} />
       </nav>
 
       {err && (
@@ -195,8 +197,6 @@ export default function DashboardView({
           </span>
         </Msg>
       )}
-
-      <ReorderWorksheet products={products} low={low} onNavigate={onNavigate} />
 
       {!loading && role === 'owner' && nextStep && (
         <section className="relative isolate overflow-hidden rounded-[1.65rem] bg-[#1d3b2d] px-5 py-6 text-white shadow-[0_18px_50px_rgba(25,58,39,.15)] sm:px-8 sm:py-7">
@@ -252,9 +252,9 @@ export default function DashboardView({
 
       <section aria-label="Inventory summary" className="grid grid-cols-2 gap-3 xl:grid-cols-4">
         <Metric icon="plant" label="Plant varieties" value={loading ? '—' : numberFormat.format(products.length)} detail={`${numberFormat.format(categories.length)} categories`} tone="green" onClick={() => onNavigate('products')} />
-        <Metric icon="layers" label="Active batches" value={loading ? '—' : numberFormat.format(activeBatches.length)} detail={`${numberFormat.format(zeroStockBatches.length)} ready to archive`} tone="sand" onClick={() => setFilter('all')} />
+        <Metric icon="layers" label="Active batches" value={loading ? '—' : numberFormat.format(activeBatches.length)} detail={`${numberFormat.format(zeroStockBatches.length)} ready to archive`} tone="sand" onClick={() => { setFilter('all'); setSearch(''); }} />
         <Metric icon="box" label="Units on hand" value={loading ? '—' : numberFormat.format(totalStock)} detail="Across active batches" tone="blue" onClick={() => onNavigate('stocktake')} />
-        <Metric icon="alert" label="Needs attention" value={loading ? '—' : numberFormat.format(low.length + zeroStockBatches.length)} detail={`${low.length} low stock · ${zeroStockBatches.length} empty`} tone="rose" onClick={() => setFilter(low.length ? 'low' : 'empty')} />
+        <Metric icon="alert" label="Needs attention" value={loading ? '—' : numberFormat.format(lowBatchCount + zeroStockBatches.length)} detail={`${lowBatchCount} low · ${zeroStockBatches.length} empty`} tone="rose" onClick={() => { setFilter('attention'); setSearch(''); }} />
       </section>
 
       <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1.65fr)_minmax(300px,.85fr)]">
@@ -270,9 +270,10 @@ export default function DashboardView({
           </div>
           <div className="space-y-3 p-4 sm:p-5">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div className="flex gap-1 rounded-xl bg-[#f4f6f2] p-1" role="group" aria-label="Filter batches">
+              <div className="flex flex-wrap gap-1 rounded-xl bg-[#f4f6f2] p-1" role="group" aria-label="Filter batches">
                 {([
                   ['all', 'All batches', activeBatches.length],
+                  ['attention', 'Attention', lowBatchCount + zeroStockBatches.length],
                   ['low', 'Low stock', lowBatchCount],
                   ['empty', 'Empty', zeroStockBatches.length],
                 ] as const).map(([key, label, count]) => (
@@ -347,7 +348,7 @@ export default function DashboardView({
                     <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white text-[#bb7541]"><Icon name="alert" className="h-4 w-4" /></span>
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-sm font-medium text-[#493b2f]">{product.name}</span>
-                      <span className="text-xs text-[#8b7b6e]">{product.total_qty} on hand · reorder at {product.reorder_level}</span>
+                      <span className="text-xs text-[#8b7b6e]">{product.total_qty} on hand · reorder at {product.reorder_level} · suggest {Math.max(0, product.reorder_level - product.total_qty)}</span>
                     </span>
                   </li>
                 ))}
@@ -434,32 +435,7 @@ export default function DashboardView({
   );
 }
 
-function TransferCard({ role }: { role: 'owner' | 'staff' }) {
-  return (
-    <article className="rounded-2xl border border-[#e5e9e2] bg-white p-4 shadow-sm">
-      <h3 className="text-sm font-semibold text-[#26392d]">Transfer stock</h3>
-      <p className="mt-1 text-xs text-[#7c887e]">Move units between locations.</p>
-      <p className="mt-3 text-xs text-[#88938a]">Use the Scan tab to record transfers.</p>
-    </article>
-  );
-}
 
-function ReorderWorksheet({ products, low, onNavigate }: { products: any[]; low: any[]; onNavigate: (t: any) => void }) {
-  if (!low.length) return null;
-  return (
-    <section className="rounded-2xl border border-[#e5e9e2] bg-white p-4 shadow-sm">
-      <h3 className="text-sm font-semibold text-[#26392d]">Reorder worksheet</h3>
-      <ul className="mt-2 divide-y">
-        {low.map((l: any) => (
-          <li key={l.product_id} className="flex items-center justify-between py-2 text-sm">
-            <span>{l.name}</span>
-            <span className="text-xs text-[#7c887e]">Suggest {Math.max(0, (l.reorder_level ?? 0) - (l.total_qty ?? 0))}</span>
-          </li>
-        ))}
-      </ul>
-    </section>
-  );
-}
 function Metric({
   icon,
   label,

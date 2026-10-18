@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import JsBarcode from 'jsbarcode';
 import QRCode from 'qrcode';
-import { api, type Category, type Product } from '../../lib/client/api';
-import { Btn, Msg, inputCls } from './ui';
+import { api, type Category, type Product, type Location } from '../../lib/client/api';
+import { Btn, Msg, inputCls, Modal } from './ui';
+import { listTransferQueue, discardQueuedTransfer, flushTransferQueue, retryQueuedTransfer, enqueueTransfer, clearTransferQueue } from '../../lib/client/offline';
 
 function Label({ p }: { p: Product }) {
   const qr = useRef<HTMLCanvasElement>(null);
@@ -119,6 +120,122 @@ function Simple<T extends { id: string; name: string }>({ title, path, extra }: 
   );
 }
 
+function Locations({ focus, onFocused }: { focus?: boolean; onFocused?: () => void }) {
+  const rootRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (focus && rootRef.current) {
+      rootRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      const first = rootRef.current.querySelector('input,select,button') as HTMLElement | null;
+      if (first) first.focus();
+      if (onFocused) onFocused();
+    }
+  }, [focus, onFocused]);
+  const [items, setItems] = useState<Location[]>([]);
+  const [activeOnly, setActiveOnly] = useState(true);
+  const [newName, setNewName] = useState('');
+  const [newKind, setNewKind] = useState<'bench' | 'tunnel' | 'shadehouse' | 'shop' | 'other'>('bench');
+  const [err, setErr] = useState('');
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingName, setEditingName] = useState('');
+  const [editingKind, setEditingKind] = useState<Location['kind']>('bench');
+  const [confirm, setConfirm] = useState<{ id: string; name: string; active: boolean } | null>(null);
+  const load = useCallback(() => api<Location[]>(`/api/locations${activeOnly ? '?active=1' : ''}`).then(setItems).catch((e) => setErr(e.message)), [activeOnly]);
+  useEffect(() => { load(); }, [load]);
+
+  const startEdit = (loc: Location) => { setEditingId(loc.id); setEditingName(loc.name); setEditingKind(loc.kind); };
+  const saveEdit = async (id: string) => {
+    setErr('');
+    try {
+      await api(`/api/locations/${id}`, { method: 'PATCH', json: { name: editingName, kind: editingKind } });
+      setEditingId(null);
+      load();
+    } catch (e) { setErr((e as Error).message); }
+  };
+  const create = async () => {
+    setErr('');
+    try {
+      await api('/api/locations', { method: 'POST', json: { name: newName.trim(), kind: newKind } });
+      setNewName(''); setNewKind('bench'); load();
+    } catch (e) { setErr((e as Error).message); }
+  };
+  const toggleActive = async (id: string, currentlyActive: boolean) => {
+    setErr('');
+    try {
+      if (currentlyActive) {
+        // soft-delete
+        await api(`/api/locations/${id}`, { method: 'DELETE' });
+      } else {
+        // reactivate via PATCH
+        await api(`/api/locations/${id}`, { method: 'PATCH', json: { active: true } });
+      }
+      setConfirm(null);
+      load();
+    } catch (e) { setErr((e as Error).message); setConfirm(null); }
+  };
+
+  return (
+    <section ref={rootRef} className="space-y-2">
+      {confirm && (
+        <Modal title={confirm.active ? 'Deactivate location' : 'Reactivate location'} onCancel={() => setConfirm(null)} onConfirm={() => toggleActive(confirm.id, confirm.active)} confirmText={confirm.active ? 'Deactivate' : 'Reactivate'}>
+          <p className="text-sm">Are you sure you want to {confirm.active ? 'deactivate' : 'reactivate'} the location <strong>{confirm.name}</strong>?</p>
+          <p className="mt-2 text-xs text-stone-500">Deactivating hides the location from selection in transfers and scans but preserves historical stock history. If this location still has stock, consider transferring it before deactivating.</p>
+        </Modal>
+      )}
+      <h3 className="font-semibold">Locations</h3>
+      <p className="text-sm text-stone-600">Define places where stock is stored (bench, tunnel, shadehouse, shop, other). Locations can be deactivated to preserve history.</p>
+      <div className="flex items-center gap-2">
+        <label className="inline-flex items-center gap-2 text-sm"><input type="checkbox" checked={activeOnly} onChange={(e) => setActiveOnly(e.target.checked)} /> Show active only</label>
+        <span className="ml-auto text-xs text-stone-500">{items.length} shown</span>
+      </div>
+
+      {items.map((loc) => (
+        <div key={loc.id} className="flex items-center justify-between rounded bg-white p-2">
+          {editingId === loc.id ? (
+            <div className="flex items-center gap-2 w-full">
+              <input className={inputCls} value={editingName} onChange={(e) => setEditingName(e.target.value)} />
+              <select className={inputCls} value={editingKind} onChange={(e) => setEditingKind(e.target.value as any)}>
+                <option value="bench">Bench</option>
+                <option value="tunnel">Tunnel</option>
+                <option value="shadehouse">Shadehouse</option>
+                <option value="shop">Shop</option>
+                <option value="other">Other</option>
+              </select>
+              <div className="ml-auto flex gap-2">
+                <button className="underline" onClick={() => saveEdit(loc.id)}>Save</button>
+                <button className="underline" onClick={() => setEditingId(null)}>Cancel</button>
+              </div>
+            </div>
+          ) : (
+            <>
+              <span>{loc.name} <span className="text-stone-500">· {loc.kind}{loc.active ? '' : ' · inactive'}</span></span>
+              <div className="flex gap-2">
+                <button className="underline" onClick={() => startEdit(loc)}>Edit</button>
+                <button className="underline text-red-700" onClick={() => { if (loc.active) setConfirm({ id: loc.id, name: loc.name, active: !!loc.active }); else toggleActive(loc.id, !!loc.active); }}>{loc.active ? 'Deactivate' : 'Reactivate'}</button>
+              </div>
+            </>
+          )}
+        </div>
+      ))}
+
+      <div className="flex flex-col gap-2 sm:flex-row">
+        <input className={inputCls} placeholder="New location name" value={newName} onChange={(e) => setNewName(e.target.value)} />
+        <select className={inputCls} value={newKind} onChange={(e) => setNewKind(e.target.value as any)}>
+          <option value="bench">Bench</option>
+          <option value="tunnel">Tunnel</option>
+          <option value="shadehouse">Shadehouse</option>
+          <option value="shop">Shop</option>
+          <option value="other">Other</option>
+        </select>
+        <Btn primary disabled={!newName.trim()} onClick={create}>Add</Btn>
+      </div>
+
+      {err && <Msg kind="err">{err}</Msg>}
+    </section>
+  );
+}
+
+
+
 function CsvTools() {
   const [csv, setCsv] = useState('');
   const [res, setRes] = useState<{ create: number; update: number; errors: { row: number; message: string }[]; dryRun: boolean } | null>(null);
@@ -178,13 +295,153 @@ function Users({ meId }: { meId: string }) {
   );
 }
 
-export default function ManageView({ meId }: { meId: string }) {
+function QueuedTransfers() {
+  const [items, setItems] = useState<any[]>([]);
+  const [err, setErr] = useState('');
+  const [locationsMap, setLocationsMap] = useState<Record<string, string>>({});
+  const [retryingId, setRetryingId] = useState<string | null>(null);
+  const [lastDiscarded, setLastDiscarded] = useState<any | null>(null);
+  const [lastDiscardedAll, setLastDiscardedAll] = useState<any[] | null>(null);
+  const undoTimerRef = useRef<number | null>(null);
+  const [showDiscardAll, setShowDiscardAll] = useState(false);
+
+  const load = useCallback(() => listTransferQueue().then(setItems).catch((e) => setErr((e as Error).message)), []);
+  useEffect(() => { load(); (async () => {
+    try {
+      const locs = await api<Location[]>('/api/locations');
+      const map: Record<string, string> = {};
+      for (const l of locs) map[l.id] = l.name;
+      setLocationsMap(map);
+    } catch {
+      setLocationsMap({});
+    }
+  })(); }, [load]);
+
+  const retryAll = async () => {
+    setErr('');
+    try { await flushTransferQueue(); load(); } catch (e) { setErr((e as Error).message); }
+  };
+
+  const retryOne = async (id: string) => {
+    setErr('');
+    setRetryingId(id);
+    try {
+      const res = await retryQueuedTransfer(id);
+      if (!res.ok) throw new Error(res.error || 'Failed');
+      await load();
+    } catch (e) {
+      setErr((e as Error).message);
+    } finally {
+      setRetryingId(null);
+    }
+  };
+
+  const discard = async (id: string) => {
+    setErr('');
+    try {
+      // fetch item before deleting to allow undo
+      const list = await listTransferQueue();
+      const it = list.find((x) => x.client_op_id === id) ?? null;
+      await discardQueuedTransfer(id);
+      setLastDiscarded(it);
+      load();
+      if (undoTimerRef.current) window.clearTimeout(undoTimerRef.current);
+      undoTimerRef.current = window.setTimeout(() => setLastDiscarded(null), 8000);
+    } catch (e) { setErr((e as Error).message); }
+  };
+
+  const undoLast = async () => {
+    if (!lastDiscarded) return;
+    try {
+      await enqueueTransfer(lastDiscarded);
+      setLastDiscarded(null);
+      load();
+      if (undoTimerRef.current) window.clearTimeout(undoTimerRef.current);
+    } catch (e) { setErr((e as Error).message); }
+  };
+
+  const discardAll = async () => {
+    setErr('');
+    try {
+      const list = await listTransferQueue();
+      if (list.length === 0) return;
+      setLastDiscardedAll(list);
+      await clearTransferQueue();
+      load();
+      if (undoTimerRef.current) window.clearTimeout(undoTimerRef.current);
+      undoTimerRef.current = window.setTimeout(() => setLastDiscardedAll(null), 8000);
+    } catch (e) { setErr((e as Error).message); }
+  };
+
+  const undoDiscardAll = async () => {
+    if (!lastDiscardedAll) return;
+    try {
+      for (const item of lastDiscardedAll) await enqueueTransfer(item);
+      setLastDiscardedAll(null);
+      load();
+      if (undoTimerRef.current) window.clearTimeout(undoTimerRef.current);
+    } catch (e) { setErr((e as Error).message); }
+  };
+
+  useEffect(() => { load(); return () => { if (undoTimerRef.current) window.clearTimeout(undoTimerRef.current); }; }, [load]);
+
+  return (
+    <section className="space-y-2">
+      <h3 className="font-semibold">Queued transfers</h3>
+      <p className="text-sm text-stone-600">Transfers queued while offline. Items are retried automatically when the app reconnects; you can retry or discard here.</p>
+      {lastDiscarded && (
+        <div className="rounded bg-amber-50 p-2 text-sm">
+          Discarded {lastDiscarded.product_name} · {lastDiscarded.qty}. <button className="underline" onClick={undoLast}>Undo</button>
+        </div>
+      )}
+      {lastDiscardedAll && (
+        <div className="rounded bg-amber-50 p-2 text-sm">
+          Discarded all queued transfers. <button className="underline" onClick={undoDiscardAll}>Undo</button>
+        </div>
+      )}
+      {items.length === 0 ? <div className="rounded bg-white p-3 text-sm text-stone-500">No queued transfers</div> : (
+        <div className="space-y-2">
+          {items.map((t) => (
+            <div key={t.client_op_id} className="flex items-center justify-between rounded bg-white p-2">
+              <div className="min-w-0">
+                <div className="truncate font-semibold">{t.product_name} · {t.qty}</div>
+                <div className="text-xs text-stone-500">{locationsMap[t.from_location_id] ?? t.from_location_id} → {locationsMap[t.to_location_id] ?? t.to_location_id} · {new Date(t.queued_at).toLocaleString()}</div>
+                {t.error && <div className="text-xs text-red-700">Error: {t.error}</div>}
+              </div>
+              <div className="flex gap-2">
+                <button className="underline" onClick={() => discard(t.client_op_id)}>Discard</button>
+                <button className="underline" disabled={retryingId === t.client_op_id} onClick={() => retryOne(t.client_op_id)}>
+                  {retryingId === t.client_op_id ? 'Retrying…' : 'Retry'}
+                </button>
+              </div>
+            </div>
+          ))}
+          <div className="flex gap-2">
+            <button className="rounded-lg border px-3 py-2 text-sm" onClick={load}>Refresh</button>
+            <button className="rounded-lg bg-green-700 px-3 py-2 text-sm font-semibold text-white" onClick={retryAll}>Retry all</button>
+            <button className="rounded-lg border px-3 py-2 text-sm text-red-700" onClick={() => setShowDiscardAll(true)}>Discard all</button>
+          </div>
+          {showDiscardAll && (
+            <Modal title="Discard all queued transfers" onCancel={() => setShowDiscardAll(false)} onConfirm={() => { discardAll(); setShowDiscardAll(false); }} confirmText="Discard all" cancelText="Cancel">
+              <p className="text-sm">Discarding all queued transfers will permanently remove them. Do you want to continue?</p>
+            </Modal>
+          )}
+          {err && <Msg kind="err">{err}</Msg>}
+        </div>
+      )}
+    </section>
+  );
+}
+
+export default function ManageView({ meId, focusSection, onFocused }: { meId: string; focusSection?: string | null; onFocused?: () => void }) {
   return (
     <div className="space-y-6">
       <Simple<Category> title="Categories" path="/api/categories" />
-      <CsvTools />
-      <Labels />
-      <Users meId={meId} />
+      <Locations focus={focusSection === 'locations'} onFocused={onFocused} />
+          <QueuedTransfers />
+          <CsvTools />
+          <Labels />
+          <Users meId={meId} />
     </div>
   );
 }
