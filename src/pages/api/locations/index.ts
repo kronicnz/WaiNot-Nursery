@@ -1,6 +1,6 @@
 import type { APIRoute } from 'astro';
-import { dbError, fail, json, parseBody, parseQuery, requireOwner } from '../../../lib/api';
-import { locationSchema, locationPatchSchema } from '../../../lib/validation';
+import { dbError, json, parseBody, parseQuery, requireOwner } from '../../../lib/api';
+import { locationSchema } from '../../../lib/validation';
 import { z } from 'zod';
 
 export const prerender = false;

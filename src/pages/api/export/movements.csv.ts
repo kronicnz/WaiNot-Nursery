@@ -15,8 +15,8 @@ export const GET: APIRoute = async (ctx) => {
       batch_id: z.uuid().optional(),
       user_id: z.uuid().optional(),
       reason: z.enum(['receive', 'sale', 'adjust', 'transfer', 'loss', 'stocktake']).optional(),
-      from: z.string().date().optional(),
-      to: z.string().date().optional(),
+      from: z.iso.date().optional(),
+      to: z.iso.date().optional(),
     }),
   );
   if ('error' in q) return q.error;
@@ -33,7 +33,7 @@ export const GET: APIRoute = async (ctx) => {
   if (q.data.reason) query = query.eq('reason', q.data.reason);
   if (q.data.from) query = query.gte('created_at', `${q.data.from}T00:00:00Z`);
   if (q.data.to) query = query.lte('created_at', `${q.data.to}T23:59:59Z`);
-  const { data, error, count } = await query;
+  const { data, error } = await query;
   if (error) return dbError(error);
 
   const rows: (string | number | boolean | null)[][] = [
