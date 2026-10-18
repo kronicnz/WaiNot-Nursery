@@ -137,7 +137,7 @@ body > footer > div {
 }
 
 body > header nav > div:first-child {
-	min-height: 56px;
+	min-height: 72px;
 }
 
 body > header nav a {
@@ -150,15 +150,15 @@ body > header nav > div:first-child > a:first-child {
 
 body > header nav > div:first-child > a:first-child .header-brand-mark {
 	display: block;
-	width: 64px;
-	height: 56px;
+	width: 80px;
+	height: 70px;
 	flex: none;
 	object-fit: contain;
 }
 
 .header-brand-location {
 	color: #74836f;
-	font-size: .625rem;
+	font-size: .75rem;
 	font-weight: 600;
 	letter-spacing: .14em;
 	line-height: 1.4;
@@ -285,6 +285,21 @@ footer address a, footer > div > div:last-child a {
 	}
 }
 
+@media (max-width: 1023px) {
+	body > header nav > div:first-child {
+		min-height: 64px;
+	}
+
+	body > header nav > div:first-child > a:first-child .header-brand-mark {
+		width: 72px;
+		height: 64px;
+	}
+
+	.header-brand-location {
+		font-size: .7rem;
+	}
+}
+
 @media (max-width: 640px) {
 	:root {
 		scroll-padding-top: 72px;
@@ -312,16 +327,16 @@ footer address a, footer > div > div:last-child a {
 	}
 
 	body > header nav > div:first-child {
-		min-height: 48px;
+		min-height: 56px;
 	}
 
 	body > header nav > div:first-child > a:first-child .header-brand-mark {
-		width: 52px;
-		height: 46px;
+		width: 64px;
+		height: 56px;
 	}
 
 	.header-brand-location {
-		font-size: .55rem;
+		font-size: .6rem;
 		letter-spacing: .11em;
 	}
 

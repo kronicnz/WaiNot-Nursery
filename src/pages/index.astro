@@ -184,10 +184,10 @@ const priceFormat = new Intl.NumberFormat('en-NZ', { style: 'currency', currency
 				<div>
 					<p class="eyebrow">A little more about us</p>
 					<h2 id="nursery-story-title">People, place<br />and <em>purpose.</em></h2>
+					<a class="text-link nursery-story-link" href={siteUrl('what-makes-us-different/')}>Meet WaiNot Native Nursery <span aria-hidden="true">↗</span></a>
 				</div>
 				<div class="nursery-story-intro">
 					<p>WaiNot is a family-run nursery in Waikite Valley. Get a glimpse of the people, growing systems and place behind every plant.</p>
-					<a class="text-link" href={siteUrl('what-makes-us-different/')}>Meet WaiNot Native Nursery <span aria-hidden="true">↗</span></a>
 				</div>
 			</div>
 			<div class="nursery-story-grid">
@@ -364,11 +364,12 @@ const priceFormat = new Intl.NumberFormat('en-NZ', { style: 'currency', currency
 		.text-link { color: var(--ink); font-size: var(--text-small); font-weight: 600; text-decoration: none; border-bottom: 1px solid #a7b19e; padding-bottom: 5px; }
 		.text-link:hover, .guide-link:hover, .group-link:hover { color: #829477; }
 		.text-link span { padding-left: 8px; }
-		.hero-proof { display: flex; align-items: center; gap: 14px; margin-top: 58px; padding-top: 20px; border-top: 1px solid var(--line); }
-		.proof-number { color: var(--forest); font-family: var(--display); font-size: 38px; letter-spacing: -.06em; line-height: 1; }
+		.hero-proof { display: grid; grid-template-columns: max-content minmax(0, 1fr) 1px minmax(0, 1fr); align-items: center; gap: 12px; margin-top: 42px; padding: 17px 16px; border: 1px solid var(--line); background: rgba(255, 255, 255, .5); }
+		.proof-number { color: var(--forest); font-family: var(--display); font-size: clamp(2rem, 3vw, 2.5rem); letter-spacing: -.06em; line-height: 1; white-space: nowrap; }
 		.proof-number span { color: #829477; }
-		.proof-copy, .proof-note { color: #68736a; font-size: var(--text-caption); line-height: 1.6; }
-		.proof-divider { width: 1px; height: 30px; margin: 0 7px; background: var(--line); }
+		.proof-copy, .proof-note { color: #68736a; font-size: .8125rem; line-height: 1.5; }
+		.proof-copy { color: var(--forest); font-weight: 600; }
+		.proof-divider { width: 1px; height: 38px; background: var(--line); }
 		.hero-visual { position: relative; width: 100%; max-width: 540px; justify-self: end; }
 		.hero-visual::before { position: absolute; z-index: 0; top: -18px; right: -18px; width: 40%; height: 48%; content: ""; background: #d9e0d1; }
 		.hero-photo { position: relative; z-index: 1; display: block; width: 100%; height: clamp(440px, 49vw, 640px); object-fit: cover; object-position: center 52%; box-shadow: 0 22px 48px rgba(27, 48, 37, .12); }
@@ -387,8 +388,8 @@ const priceFormat = new Intl.NumberFormat('en-NZ', { style: 'currency', currency
 		.section-heading { display: grid; grid-template-columns: 1fr minmax(250px, .55fr); align-items: center; gap: 48px; }
 		.section-heading .eyebrow { margin-bottom: 14px; }
 		.section-heading h2, .ellebag-copy h2, .impact-copy h2, .trust-copy h2, .testimonial-heading h2, .contact-copy h2 { font-size: var(--h2-size); line-height: 1.03; }
-		.section-intro { position: relative; max-width: 410px; margin: 0 0 5px; padding-left: 20px; border-left: 1px solid #d8e0d2; color: #5f6e64; font-size: .9375rem; line-height: 1.75; }
-		.section-intro::before { position: absolute; top: 4px; bottom: 4px; left: -2px; width: 3px; border-radius: 999px; background: #829477; content: ""; }
+		.section-intro { position: relative; max-width: 410px; margin: 0 0 5px; padding: 18px 20px 18px 24px; border: 1px solid rgba(29, 50, 41, .1); background: #f3f5ef; color: #526157; font-size: 1rem; line-height: 1.65; }
+		.section-intro::before { position: absolute; top: 15px; bottom: 15px; left: 0; width: 3px; border-radius: 0 999px 999px 0; background: #829477; content: ""; }
 		.catalogue-tools { margin-top: 42px; padding: 14px 0; display: flex; justify-content: space-between; align-items: center; gap: 22px; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
 		.category-filters { display: flex; flex-wrap: wrap; gap: 7px; }
 		.filter-button { min-height: 40px; padding: 0 13px; border: 1px solid transparent; border-radius: 2px; background: transparent; color: #58675d; cursor: pointer; font: 500 var(--text-caption) var(--sans); transition: color .2s, background .2s, border-color .2s; }
@@ -463,9 +464,10 @@ const priceFormat = new Intl.NumberFormat('en-NZ', { style: 'currency', currency
 		.impact-photo img { position: relative; z-index: 1; display: block; width: 100%; height: auto; aspect-ratio: 495 / 446; object-fit: cover; }
 		.impact-copy { max-width: 460px; }
 		.impact-copy > p:not(.eyebrow), .trust-copy > p:not(.eyebrow) { color: #5f6e64; font-size: var(--text-small); line-height: 1.8; }
-		.impact-stat { margin: 27px 0 23px; padding: 18px 0; display: flex; align-items: center; gap: 15px; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
-		.impact-stat span { color: #78896c; font-family: var(--display); font-size: 2.375rem; letter-spacing: -.06em; }
-		.impact-stat p { max-width: 210px; margin: 0; color: #59685e; font-size: var(--text-caption); line-height: 1.6; }
+		.impact-stat { position: relative; margin: 27px 0 23px; padding: 19px 20px; display: grid; grid-template-columns: max-content minmax(0, 1fr); align-items: center; gap: 16px; border: 1px solid rgba(29, 50, 41, .1); background: rgba(255, 255, 255, .58); }
+		.impact-stat::before { position: absolute; inset: 14px auto 14px 0; width: 3px; border-radius: 0 999px 999px 0; background: #829477; content: ""; }
+		.impact-stat span { color: var(--forest); font-family: var(--display); font-size: clamp(2.75rem, 5vw, 3.5rem); letter-spacing: -.07em; line-height: 1; white-space: nowrap; }
+		.impact-stat p { max-width: 230px; margin: 0; color: #526157; font-size: var(--text-small); font-weight: 500; line-height: 1.6; }
 
 		.trust-section { padding: var(--section-y) var(--gutter); display: grid; grid-template-columns: .7fr 1fr; align-items: center; gap: 70px; background: var(--paper); }
 		.trust-mark { min-height: 160px; display: grid; place-items: center; border: 1px solid var(--line); background: #f4f4ed; }
@@ -478,9 +480,10 @@ const priceFormat = new Intl.NumberFormat('en-NZ', { style: 'currency', currency
 		.nursery-story-heading .eyebrow { margin-bottom: 14px; }
 		.nursery-story-heading h2 { margin: 0; color: var(--ink); font-family: var(--display); font-size: var(--h2-size); font-weight: 500; letter-spacing: -.055em; line-height: 1.03; }
 		.nursery-story-heading h2 em { color: #809174; font-weight: 400; }
+		.nursery-story-link { display: inline-block; margin-top: 20px; }
 		.nursery-story-intro { max-width: 450px; }
-		.nursery-story-intro p { position: relative; margin: 0 0 18px; padding-left: 20px; border-left: 1px solid #d8e0d2; color: #5f6e64; font-size: .9375rem; line-height: 1.75; }
-		.nursery-story-intro p::before { position: absolute; top: 4px; bottom: 4px; left: -2px; width: 3px; border-radius: 999px; background: #829477; content: ""; }
+		.nursery-story-intro p { position: relative; margin: 0 0 18px; padding: 18px 20px 18px 24px; border: 1px solid rgba(29, 50, 41, .1); background: #f3f5ef; color: #526157; font-size: 1rem; line-height: 1.65; }
+		.nursery-story-intro p::before { position: absolute; top: 15px; bottom: 15px; left: 0; width: 3px; border-radius: 0 999px 999px 0; background: #829477; content: ""; }
 
 		.testimonial-section { padding: var(--section-y) var(--gutter); display: grid; grid-template-columns: minmax(0, .8fr) minmax(0, 1.2fr); gap: clamp(32px, 5vw, 68px); align-items: center; background: #e8ece3; }
 		.testimonial-heading { max-width: 390px; }
@@ -517,6 +520,9 @@ const priceFormat = new Intl.NumberFormat('en-NZ', { style: 'currency', currency
 			.hero { grid-template-columns: 1fr .78fr; gap: 30px; }
 			.hero h1 { font-size: clamp(3rem, 7vw, 4.25rem); }
 			.hero-photo { height: 470px; }
+			.hero-proof { grid-template-columns: max-content minmax(0, 1fr) 1px minmax(0, 1fr); gap: 9px; padding-inline: 12px; }
+			.proof-number { font-size: 1.875rem; }
+			.proof-copy, .proof-note { font-size: .7rem; }
 			.ticker div { padding-right: 12px; padding-left: 12px; }
 			.ticker .ticker-label { font-size: var(--text-caption); }
 			.plant-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
@@ -528,6 +534,10 @@ const priceFormat = new Intl.NumberFormat('en-NZ', { style: 'currency', currency
 			.contact-section { gap: 45px; }
 		}
 		@media (max-width: 800px) {
+			.hero { min-height: 0; grid-template-columns: 1fr; align-items: stretch; gap: 36px; }
+			.hero-copy { max-width: 700px; }
+			.hero-visual { width: min(100%, 600px); justify-self: end; }
+			.hero-photo { height: clamp(360px, 55vw, 470px); }
 			.testimonial-section { grid-template-columns: 1fr; align-items: start; gap: 28px; }
 			.testimonial-heading { max-width: 540px; }
 			.contact-section { grid-template-columns: 1fr; gap: 38px; }
@@ -540,7 +550,11 @@ const priceFormat = new Intl.NumberFormat('en-NZ', { style: 'currency', currency
 			.hero { padding: 48px var(--gutter) 40px; display: flex; flex-direction: column; align-items: stretch; gap: 33px; }
 			.hero h1 { font-size: clamp(2.875rem, 13vw, 4.375rem); }
 			.hero-intro { margin-top: 19px; font-size: var(--text-body); }
-			.hero-proof { margin-top: 32px; }
+			.hero-proof { grid-template-columns: max-content minmax(0, 1fr); gap: 10px 12px; margin-top: 26px; padding: 15px; }
+			.proof-number { font-size: 2.25rem; }
+			.proof-copy, .proof-note { font-size: var(--text-caption); }
+			.proof-divider { grid-column: 1 / -1; width: 100%; height: 1px; }
+			.proof-note { grid-column: 1 / -1; }
 			.hero-visual { width: calc(100% - 12px); max-width: none; margin-right: 12px; }
 			.hero-photo { height: min(112vw, 430px); }
 			.photo-stamp { left: -12px; width: 70px; height: 70px; }
@@ -553,7 +567,8 @@ const priceFormat = new Intl.NumberFormat('en-NZ', { style: 'currency', currency
 			.catalogue-section { padding: var(--section-y) var(--gutter); }
 			.section-heading { grid-template-columns: 1fr; align-items: start; gap: 13px; }
 			.section-heading h2, .ellebag-copy h2, .impact-copy h2, .testimonial-heading h2 { font-size: clamp(2.375rem, 11vw, 3rem); }
-			.section-intro { padding-left: 15px; font-size: var(--text-caption); }
+			.section-intro { padding: 14px 15px 14px 19px; font-size: .875rem; line-height: 1.65; }
+			.section-intro::before { top: 12px; bottom: 12px; }
 			.catalogue-tools { margin-top: 26px; align-items: stretch; flex-direction: column-reverse; gap: 13px; }
 			.category-filters { overflow-x: auto; flex-wrap: nowrap; padding-bottom: 2px; }
 			.filter-button { flex: none; }
@@ -580,13 +595,17 @@ const priceFormat = new Intl.NumberFormat('en-NZ', { style: 'currency', currency
 			.ellebag-intro { font-size: var(--text-caption); }
 			.impact-section { padding: var(--section-y) var(--gutter); grid-template-columns: 1fr; gap: 39px; }
 			.impact-photo img { height: 310px; }
+			.impact-stat { gap: 14px; padding: 17px 18px; }
+			.impact-stat span { font-size: clamp(2.625rem, 12vw, 3.25rem); }
+			.impact-stat p { font-size: var(--text-caption); }
 			.trust-section { padding: var(--section-y) var(--gutter); grid-template-columns: 1fr; gap: 30px; }
 			.trust-mark { min-height: 130px; }
 			.trust-copy h2 { font-size: 2.5rem; }
 			.nursery-story { padding: var(--section-y) var(--gutter); }
 			.nursery-story-heading { margin-bottom: 25px; grid-template-columns: 1fr; gap: 15px; }
 			.nursery-story-heading h2 { font-size: clamp(2.5rem, 11vw, 3.25rem); }
-			.nursery-story-intro p { padding-left: 15px; font-size: var(--text-caption); }
+			.nursery-story-intro p { padding: 14px 15px 14px 19px; font-size: .875rem; line-height: 1.65; }
+			.nursery-story-intro p::before { top: 12px; bottom: 12px; }
 			.testimonial-section { padding: var(--section-y) var(--gutter); grid-template-columns: 1fr; gap: 28px; }
 			.testimonial-panel { padding: 26px 22px 17px; }
 			.testimonial-quote blockquote { min-height: 0; font-size: var(--text-body); }

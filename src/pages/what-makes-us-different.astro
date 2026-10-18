@@ -52,8 +52,8 @@ const sustainabilityPillars = [
 	<div class="difference-page">
 		<section class="difference-hero" aria-labelledby="difference-title">
 			<div class="difference-hero-copy">
-				<p class="difference-eyebrow"><span aria-hidden="true"></span> The WaiNot difference · Waikite Valley</p>
-				<h1 id="difference-title">Good growing.<br /><em>Wider purpose.</em></h1>
+				<p class="difference-eyebrow">The WaiNot difference · Waikite Valley</p>
+				<h1 id="difference-title">Good growing.<br /><em>A wider purpose.</em></h1>
 				<p class="difference-lead">We grow hardy native plants with care for the land, the people planting them and the places they’ll grow for generations.</p>
 				<a class="difference-button" href="#sustainability">How we make a difference <span aria-hidden="true">↓</span></a>
 				<p class="difference-location">Locally grown in Rotorua, Aotearoa</p>
@@ -121,8 +121,8 @@ const sustainabilityPillars = [
 
 		<section class="difference-photo-section" aria-labelledby="difference-photo-title">
 			<header>
-				<p class="difference-eyebrow">The people and place behind the plants</p>
 				<h2 id="difference-photo-title">Grown with care,<br /><em>from the ground up.</em></h2>
+				<p class="difference-photo-intro">Meet the people, place and careful growing practices behind every plant we raise in Waikite Valley.</p>
 			</header>
 			<div class="nursery-photo-grid">
 				{nurseryStoryPhotos.map((photo) => (
@@ -187,14 +187,6 @@ const sustainabilityPillars = [
 		line-height: 1.5;
 		text-transform: uppercase;
 	}
-	.difference-hero .difference-eyebrow > span {
-		display: inline-block;
-		width: 7px;
-		height: 7px;
-		margin: 0 8px 1px 0;
-		border-radius: 50%;
-		background: var(--diff-sage);
-	}
 	.difference-hero h1, .difference-section-heading h2, .growing-story h2, .about-nursery h2, .difference-cta h2 {
 		margin: 0;
 		font-family: "Playfair Display", Georgia, serif;
@@ -202,7 +194,7 @@ const sustainabilityPillars = [
 		letter-spacing: -.055em;
 		line-height: 1.02;
 	}
-	.difference-hero h1 { font-size: clamp(3.25rem, 6.4vw, 5.8rem); }
+	.difference-hero h1 { font-size: clamp(3rem, 5vw, 5rem); }
 	.difference-hero h1 em, .difference-section-heading h2 em, .growing-story h2 em, .about-nursery h2 em {
 		color: var(--diff-sage);
 		font-weight: 400;
@@ -310,12 +302,11 @@ const sustainabilityPillars = [
 	}
 	.difference-photo-section > header {
 		margin-bottom: 32px;
-		display: flex;
-		align-items: end;
-		justify-content: space-between;
+		display: grid;
+		grid-template-columns: minmax(0, 1fr) minmax(260px, .72fr);
+		align-items: center;
 		gap: 30px;
 	}
-	.difference-photo-section .difference-eyebrow { margin-bottom: 13px; }
 	.difference-photo-section h2 {
 		margin: 0;
 		font-family: "Playfair Display", Georgia, serif;
@@ -325,13 +316,35 @@ const sustainabilityPillars = [
 		line-height: 1.04;
 	}
 	.difference-photo-section h2 em { color: var(--diff-sage); font-weight: 400; }
+	.difference-photo-intro {
+		position: relative;
+		max-width: 440px;
+		justify-self: end;
+		margin: 0;
+		padding: 18px 20px 18px 24px;
+		border: 1px solid rgba(29, 50, 41, .1);
+		background: #f3f5ef;
+		color: #526157;
+		font-size: 1rem;
+		line-height: 1.65;
+	}
+	.difference-photo-intro::before {
+		position: absolute;
+		top: 15px;
+		bottom: 15px;
+		left: 0;
+		width: 3px;
+		border-radius: 0 999px 999px 0;
+		background: #829477;
+		content: "";
+	}
 
 	.sustainability-section { padding: var(--section-y) var(--gutter); }
 	.difference-section-heading {
 		margin-bottom: 40px;
 		display: grid;
 		grid-template-columns: 1fr minmax(260px, .52fr);
-		align-items: end;
+		align-items: center;
 		gap: 48px;
 	}
 	.difference-section-heading .difference-eyebrow { margin-bottom: 14px; }
@@ -339,20 +352,21 @@ const sustainabilityPillars = [
 	.difference-section-heading > p {
 		position: relative;
 		max-width: 440px;
-		margin: 0 0 6px;
-		padding-left: 20px;
-		border-left: 1px solid #d8e0d2;
-		color: #5f6e64;
-		font-size: .9375rem;
-		line-height: 1.75;
+		margin: 0;
+		padding: 18px 20px 18px 24px;
+		border: 1px solid rgba(29, 50, 41, .1);
+		background: #f3f5ef;
+		color: #526157;
+		font-size: 1rem;
+		line-height: 1.65;
 	}
 	.difference-section-heading > p::before {
 		position: absolute;
-		top: 4px;
-		bottom: 4px;
-		left: -2px;
+		top: 15px;
+		bottom: 15px;
+		left: 0;
 		width: 3px;
-		border-radius: 999px;
+		border-radius: 0 999px 999px 0;
 		background: #829477;
 		content: "";
 	}
@@ -540,16 +554,18 @@ const sustainabilityPillars = [
 	.difference-button-light:hover { background: white; }
 
 	@media (max-width: 800px) {
-		.difference-hero { grid-template-columns: 1fr .8fr; 		gap: 34px; }
-				.difference-hero h1 { font-size: clamp(3rem, 7vw, 4.25rem); }
-				.difference-hero-image { height: 380px; }
-				.difference-section-heading { grid-template-columns: 1fr minmax(230px, .7fr); gap: 28px; }
+		.difference-hero { grid-template-columns: 1fr; gap: 34px; }
+		.difference-hero-copy { max-width: 700px; }
+		.difference-hero h1 { font-size: clamp(3rem, 7vw, 4.25rem); }
+		.difference-hero-image { width: 100%; max-width: 640px; height: 380px; }
+		.difference-section-heading { grid-template-columns: 1fr; align-items: start; gap: 16px; }
+		.difference-photo-section > header { grid-template-columns: 1fr minmax(260px, .72fr); gap: 24px; }
 		.pillar-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 		.pillar-card { padding: 20px 16px; }
 		.pillar-card h3 { font-size: 1.25rem; }
 		.growing-story { gap: 46px; }
-				.growing-story-image, .growing-story-image img { min-height: 380px; height: 380px; }
-			}
+		.growing-story-image, .growing-story-image img { min-height: 380px; height: 380px; }
+	}
 	@media (max-width: 640px) {
 		.difference-hero { padding: 54px var(--gutter) 45px; grid-template-columns: 1fr; gap: 34px; }
 		.difference-hero h1 { font-size: clamp(3rem, 13vw, 4.25rem); }
@@ -559,11 +575,15 @@ const sustainabilityPillars = [
 		.difference-hero-image::before { right: -12px; }
 		.difference-purpose { padding: 25px var(--gutter); align-items: flex-start; flex-direction: column; gap: 15px; }
 		.difference-photo-section { padding: var(--section-y) var(--gutter); }
-		.difference-photo-section > header { margin-bottom: 24px; align-items: flex-start; flex-direction: column; gap: 0; }
+		.difference-photo-section > header { margin-bottom: 24px; grid-template-columns: 1fr; align-items: start; gap: 14px; }
 		.difference-photo-section h2 { font-size: clamp(2.375rem, 10vw, 3rem); }
+		.difference-photo-intro { justify-self: stretch; padding: 14px 15px 14px 19px; font-size: .875rem; }
+		.difference-photo-intro::before { top: 12px; bottom: 12px; }
 		.sustainability-section { padding: var(--section-y) var(--gutter); }
-		.difference-section-heading { margin-bottom: 27px; grid-template-columns: 1fr; gap: 12px; }
+		.difference-section-heading { margin-bottom: 27px; grid-template-columns: 1fr; align-items: start; gap: 12px; }
 		.difference-section-heading h2, .growing-story h2, .about-nursery h2 { font-size: clamp(2.5rem, 11vw, 3.25rem); }
+		.difference-section-heading > p { margin-bottom: 0; padding: 14px 15px 14px 19px; font-size: .875rem; }
+		.difference-section-heading > p::before { top: 12px; bottom: 12px; }
 		.pillar-grid { grid-template-columns: 1fr; gap: 10px; }
 		.pillar-card { min-height: 0; padding: 19px; grid-column: auto; }
 		.pillar-card h3 { margin-top: 15px; }
