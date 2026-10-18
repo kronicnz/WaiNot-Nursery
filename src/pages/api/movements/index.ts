@@ -21,7 +21,7 @@ export const GET: APIRoute = async ({ locals, url }) => {
 
   let query = locals.supabase
     .from('stock_movements')
-    .select('*, products(sku,name), batches(batch_code), locations(name,kind), profiles(name)', { count: 'exact' })
+    .select('*, products(sku,name), batches(batch_code), locations(name,kind)', { count: 'exact' })
     .order('created_at', { ascending: false })
     .range(offset, offset + limit - 1);
   if (q.data.product_id) query = query.eq('product_id', q.data.product_id);
