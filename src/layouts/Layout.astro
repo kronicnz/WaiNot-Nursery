@@ -37,16 +37,11 @@ const formatPhone = (phone: string) => phone.replace(/^(\d{3})(\d{3})(\d{4})$/, 
       <a href={siteUrl('#contact')}>Plan your planting <span aria-hidden="true">↗</span></a>
     </div>
     <header class="sticky top-0 z-50 border-b border-[#e4e5dd] bg-[#fcfbf7]/95 backdrop-blur-md">
-      <nav class="mx-auto max-w-[1500px] px-6 py-3" aria-label="Main navigation">
+      <nav class="mx-auto max-w-[1500px] px-6 py-2" aria-label="Main navigation">
         <div class="flex items-center justify-between">
           <a href={siteUrl('/')} class="flex items-center gap-3" aria-label="WaiNot Native Nursery Home">
-            <span class="grid h-9 w-9 place-items-center rounded-full bg-[#e7ebdf] text-[#294536]">
-              <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M19.5 4.5c-7.8.2-12.8 2.8-13.8 7.4-.7 3.3 1.8 5.8 4.9 5.1 4.8-1.1 7.8-6.4 8.9-12.5Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M4 21c2.2-5.5 5.9-8.8 11-11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
-            </span>
-            <span class="flex flex-col leading-none">
-              <span class="font-serif text-lg font-semibold tracking-tight text-[#20392d]">WaiNot Natives</span>
-              <span class="mt-1 text-xs font-medium uppercase tracking-[.19em] text-[#74836f]">Native nursery · Rotorua</span>
-            </span>
+            <img class="header-brand-mark" src="/images/WaiNot-Nursery.png" alt="" width="500" height="442" />
+            <span class="header-brand-location">Native nursery · Rotorua</span>
           </a>
           
           <div class="hidden items-center gap-6 lg:flex">

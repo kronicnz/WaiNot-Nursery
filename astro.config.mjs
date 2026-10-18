@@ -2,14 +2,13 @@
 import { defineConfig } from 'astro/config';
 
 import react from '@astrojs/react';
+import vercel from '@astrojs/vercel';
 import tailwindcss from '@tailwindcss/vite';
 
-// https://astro.build/config
+// Public pages are prerendered; /admin and /api opt out with `prerender = false`.
 export default defineConfig({
   integrations: [react()],
-  site: 'https://kronicnz.github.io',
-  base: '/WaiNot-Nursery', // <-- Double check that the "/" is present here!
-
+  adapter: vercel(),
 
   vite: {
     plugins: [tailwindcss()]

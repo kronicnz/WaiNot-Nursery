@@ -17,19 +17,73 @@ body {
 	min-width: 320px;
 	margin: 0;
 	background: #fcfbf7;
+	font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
 img {
 	max-width: 100%;
 }
 
+::selection {
+	background: #dce6d5;
+	color: #1d3229;
+}
+
 a {
 	text-underline-offset: 3px;
+}
+
+button:not(:disabled) {
+	cursor: pointer;
+	-webkit-tap-highlight-color: transparent;
+}
+
+button:not(:disabled):active {
+	transform: translateY(1px);
 }
 
 :focus-visible {
 	outline: 3px solid #91a77f;
 	outline-offset: 3px;
+}
+
+.admin-app {
+	background-image: radial-gradient(ellipse at 100% 0, rgba(220, 232, 216, .42), transparent 34%);
+}
+
+.admin-app :is(input:not([type="checkbox"]), select, textarea) {
+	border-color: #dce4d9;
+	border-radius: 10px;
+	transition: border-color .18s ease, box-shadow .18s ease;
+}
+
+.admin-app :is(input:not([type="checkbox"]), select, textarea):focus {
+	border-color: #829477;
+	box-shadow: 0 0 0 3px rgba(130, 148, 119, .15);
+}
+
+.admin-app button:not(:disabled) {
+	transition: transform .16s ease, box-shadow .16s ease, background-color .16s ease, border-color .16s ease, color .16s ease;
+}
+
+.admin-login {
+	min-height: 100svh;
+	display: flex;
+	flex-direction: column;
+	justify-content: center;
+}
+
+.admin-login h1 {
+	color: #244437;
+	text-align: center;
+}
+
+.admin-login form {
+	padding: 1.5rem;
+	border: 1px solid #e3e8df;
+	border-radius: 16px;
+	background: white;
+	box-shadow: 0 16px 40px rgba(36, 68, 55, .08);
 }
 
 .site-announcement {
@@ -74,6 +128,7 @@ body > header {
 body > header nav {
 	max-width: none;
 	padding-inline: var(--gutter);
+	padding-block: 8px;
 }
 
 body > footer > div {
@@ -82,7 +137,7 @@ body > footer > div {
 }
 
 body > header nav > div:first-child {
-	min-height: 54px;
+	min-height: 56px;
 }
 
 body > header nav a {
@@ -93,13 +148,22 @@ body > header nav > div:first-child > a:first-child {
 	border-radius: 4px;
 }
 
-body > header nav > div:first-child > a:first-child > span:first-child {
-	width: 42px;
-	height: 42px;
+body > header nav > div:first-child > a:first-child .header-brand-mark {
+	display: block;
+	width: 64px;
+	height: 56px;
+	flex: none;
+	object-fit: contain;
 }
 
-body > header nav > div:first-child > a:first-child > span:last-child > span:first-child {
-	font-size: 1.125rem;
+.header-brand-location {
+	color: #74836f;
+	font-size: .625rem;
+	font-weight: 600;
+	letter-spacing: .14em;
+	line-height: 1.4;
+	text-transform: uppercase;
+	white-space: nowrap;
 }
 
 body > header nav a[href$="/what-makes-us-different/"] {
@@ -244,12 +308,21 @@ footer address a, footer > div > div:last-child a {
 
 
 	body > header nav > div:first-child > a:first-child {
-		gap: 9px !important;
+		gap: 8px !important;
 	}
 
-	body > header nav > div:first-child > a:first-child > span:first-child {
-		width: 38px;
-		height: 38px;
+	body > header nav > div:first-child {
+		min-height: 48px;
+	}
+
+	body > header nav > div:first-child > a:first-child .header-brand-mark {
+		width: 52px;
+		height: 46px;
+	}
+
+	.header-brand-location {
+		font-size: .55rem;
+		letter-spacing: .11em;
 	}
 
 	.nursery-photo-grid {
@@ -269,8 +342,12 @@ footer address a, footer > div > div:last-child a {
 		scroll-behavior: auto;
 	}
 
-	.nursery-photo-card img,
-	.nursery-photo-card figcaption span:last-child {
-		transition: none;
+	*,
+	*::before,
+	*::after {
+		scroll-behavior: auto !important;
+		animation-duration: .01ms !important;
+		animation-iteration-count: 1 !important;
+		transition-duration: .01ms !important;
 	}
 }

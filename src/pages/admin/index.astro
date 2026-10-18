@@ -1,0 +1,9 @@
+---
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import AdminApp from '../../components/admin/AdminApp';
+
+export const prerender = false;
+---
+<AdminLayout>
+  <AdminApp client:only="react" />
+</AdminLayout>
