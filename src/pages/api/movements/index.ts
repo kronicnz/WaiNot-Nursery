@@ -8,7 +8,7 @@ export const GET: APIRoute = async ({ locals, url }) => {
   const q = parseQuery(
     url.searchParams,
     z.object({
-      product_id: z.string().uuid().optional(),
+      product_id: z.uuid().optional(),
       reason: z.enum(['receive', 'sale', 'adjust', 'transfer', 'loss', 'stocktake']).optional(),
     }),
   );

@@ -7,7 +7,7 @@ export const prerender = false;
 
 export const GET: APIRoute = async ({ locals, url }) => {
   const productId = url.searchParams.get('product_id');
-  if (!z.string().uuid().safeParse(productId).success) return fail('product_id is required');
+  if (!z.uuid().safeParse(productId).success) return fail('product_id is required');
   const { data, error } = await locals.supabase
     .from('batches')
     .select('*')

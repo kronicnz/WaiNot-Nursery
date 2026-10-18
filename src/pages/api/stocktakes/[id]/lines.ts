@@ -6,7 +6,7 @@ import { stocktakeLineSchema } from '../../../../lib/validation';
 export const prerender = false;
 
 export const PUT: APIRoute = async ({ request, locals, params }) => {
-  if (!z.string().uuid().safeParse(params.id).success) return fail('Invalid id');
+  if (!z.uuid().safeParse(params.id).success) return fail('Invalid id');
   const body = await parseBody(request, stocktakeLineSchema);
   if ('error' in body) return body.error;
   if (body.data.batch_id) {

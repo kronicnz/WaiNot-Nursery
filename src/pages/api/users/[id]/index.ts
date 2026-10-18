@@ -9,7 +9,7 @@ export const PATCH: APIRoute = async (ctx) => {
   const denied = requireOwner(ctx);
   if (denied) return denied;
   const id = ctx.params.id!;
-  if (!z.string().uuid().safeParse(id).success) return fail('Invalid id');
+  if (!z.uuid().safeParse(id).success) return fail('Invalid id');
   const body = await parseBody(ctx.request, userPatchSchema);
   if ('error' in body) return body.error;
   if (id === ctx.locals.user!.id && (body.data.role === 'staff' || body.data.active === false)) {

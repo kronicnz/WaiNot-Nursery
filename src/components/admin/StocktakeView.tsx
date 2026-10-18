@@ -109,9 +109,9 @@ export default function StocktakeView({ role }: { role: 'owner' | 'staff' }) {
           const system = expected(l.product_id, l.batch_id);
           const diff = l.counted_qty - system;
           return (
-            <li key={`${l.product_id}:${l.batch_id ?? 'unassigned'}`} className="flex justify-between rounded-lg bg-white p-3 text-sm shadow-sm">
-              <span>{l.products.name}<small className="block text-stone-500">{l.batches?.batch_code ?? 'Unassigned batch'}</small></span>
-              <span>{l.counted_qty} (system {system}) <b className={diff === 0 ? '' : diff > 0 ? 'text-green-700' : 'text-red-700'}>{diff > 0 ? `+${diff}` : diff}</b></span>
+            <li key={`${l.product_id}:${l.batch_id ?? 'unassigned'}`} className="grid grid-cols-1 gap-1 rounded-lg bg-white p-3 text-sm shadow-sm sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
+              <span className="min-w-0 break-words">{l.products.name}<small className="block text-stone-500">{l.batches?.batch_code ?? 'Unassigned batch'}</small></span>
+              <span className="break-words sm:text-right">{l.counted_qty} (system {system}) <b className={diff === 0 ? '' : diff > 0 ? 'text-green-700' : 'text-red-700'}>{diff > 0 ? `+${diff}` : diff}</b></span>
             </li>
           );
         })}

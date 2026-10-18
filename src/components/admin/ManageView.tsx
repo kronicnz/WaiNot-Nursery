@@ -87,7 +87,7 @@ function Labels() {
       <Btn disabled={!chosen.length && !chosenBatches.length} onClick={() => window.print()} className="print:hidden">
         Print {chosen.length + chosenBatches.length} label(s)
       </Btn>
-      <div className="grid grid-cols-3 gap-2 print:grid-cols-4">
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 print:grid-cols-4">
         {chosen.map((p) => <Label key={`product:${p.id}`} p={p} />)}
         {chosenBatches.map(({ batch, product }) => <BatchLabel key={`batch:${batch.id}`} batch={batch} product={product} />)}
       </div>
@@ -110,7 +110,7 @@ function Simple<T extends { id: string; name: string }>({ title, path, extra }: 
           <button className="text-red-700" onClick={async () => { try { await api(`${path}/${i.id}`, { method: 'DELETE' }); load(); } catch (e) { setErr((e as Error).message); } }}>Delete</button>
         </div>
       ))}
-      <div className="flex gap-2">
+      <div className="flex flex-col gap-2 sm:flex-row">
         <input className={inputCls} value={name} onChange={(e) => setName(e.target.value)} placeholder={`New ${title.toLowerCase()}`} maxLength={80} />
         <Btn primary disabled={!name.trim()} onClick={async () => { try { await api(path, { method: 'POST', json: { name: name.trim() } }); setName(''); load(); } catch (e) { setErr((e as Error).message); } }}>Add</Btn>
       </div>
@@ -132,7 +132,7 @@ function CsvTools() {
       <h3 className="font-semibold">CSV import / export</h3>
       <a className="inline-block rounded-lg bg-stone-200 px-4 py-3" href="/api/export/products.csv" download>Export products CSV</a>
       <input type="file" accept=".csv,text/csv" onChange={async (e) => { const f = e.target.files?.[0]; if (f) { setCsv(await f.text()); setRes(null); } }} />
-      <div className="flex gap-2">
+      <div className="flex flex-wrap gap-2">
         <Btn disabled={!csv} onClick={() => run(false)}>Preview</Btn>
         <Btn primary disabled={!res || res.errors.length > 0 || !res.dryRun} onClick={() => run(true)}>Commit import</Btn>
       </div>
@@ -159,10 +159,10 @@ function Users({ meId }: { meId: string }) {
     <section className="space-y-2">
       <h3 className="font-semibold">Staff</h3>
       {users.map((u) => (
-        <div key={u.id} className="flex items-center justify-between gap-2 rounded bg-white p-2 text-sm">
-          <span>{u.name || u.email} <span className="text-stone-500">{u.email} · {u.role}{u.active ? '' : ' · disabled'}</span></span>
+        <div key={u.id} className="flex flex-col items-start justify-between gap-2 rounded bg-white p-2 text-sm sm:flex-row sm:items-center">
+          <span className="min-w-0 break-words">{u.name || u.email} <span className="text-stone-500">{u.email} · {u.role}{u.active ? '' : ' · disabled'}</span></span>
           {u.id !== meId && (
-            <span className="flex gap-2">
+            <span className="flex flex-wrap gap-x-2 gap-y-1">
               <button className="underline" onClick={() => patch(u.id, { role: u.role === 'owner' ? 'staff' : 'owner' })}>{u.role === 'owner' ? 'Make staff' : 'Make owner'}</button>
               <button className="underline" onClick={() => patch(u.id, { active: !u.active })}>{u.active ? 'Disable' : 'Enable'}</button>
             </span>

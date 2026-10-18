@@ -153,7 +153,7 @@ function ProductForm({ product, categories, onDone }: { product: Product | null;
       <Field label="SKU"><input className={inputCls} value={f.sku} onChange={set('sku')} maxLength={64} /></Field>
       <Field label="Name"><input className={inputCls} value={f.name} onChange={set('name')} maxLength={200} /></Field>
       <Field label="Botanical name"><input className={inputCls} value={f.botanical_name} onChange={set('botanical_name')} /></Field>
-      <div className="grid grid-cols-2 gap-2">
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
         <Field label="Pot size"><input className={inputCls} value={f.pot_size} onChange={set('pot_size')} /></Field>
         <Field label="Price"><input className={inputCls} inputMode="decimal" value={f.price} onChange={set('price')} /></Field>
         <Field label="Low stock"><input className={inputCls} inputMode="numeric" value={f.reorder_level} onChange={set('reorder_level')} /><span className="mt-1 block text-xs text-stone-500">Show a low-stock alert at or below this quantity.</span></Field>
@@ -178,7 +178,7 @@ function ProductForm({ product, categories, onDone }: { product: Product | null;
             <button className="text-red-700" onClick={() => setBarcodes(barcodes.filter((x) => x !== b))}>Remove</button>
           </div>
         ))}
-        <div className="flex gap-2">
+        <div className="flex flex-col gap-2 sm:flex-row">
           <input className={inputCls} value={newCode} onChange={(e) => setNewCode(e.target.value)} placeholder="Enter or scan barcode" />
           <Btn onClick={() => addCode(newCode)}>Add</Btn>
           <Btn onClick={() => setScanning(!scanning)}>Scan</Btn>
@@ -237,8 +237,8 @@ function ProductForm({ product, categories, onDone }: { product: Product | null;
             <p className="text-sm text-stone-600">Batches (plant age)</p>
             <div className="space-y-2">{batches.map((b) => (
               <div key={b.id} className="rounded bg-stone-100 px-3 py-2 text-sm">
-                <div className="flex items-center justify-between gap-2">
-                  <span className="font-medium">{b.batch_code}{b.potted_on ? ` · potted ${b.potted_on}` : ''}</span>
+                <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between sm:gap-2">
+                  <span className="min-w-0 break-words font-medium">{b.batch_code}{b.potted_on ? ` · potted ${b.potted_on}` : ''}</span>
                   <span className={b.archived_at ? 'text-stone-500' : 'text-green-800'}>{b.archived_at ? 'Archived' : 'Active · ' + (b.qty ?? stockLevels.filter((level) => level.batch_id === b.id).reduce((total, level) => total + level.qty, 0)) + ' on hand'}</span>
                 </div>
                 <code className="mt-1 block break-all text-stone-600">{b.barcode}</code>
@@ -261,7 +261,7 @@ function ProductForm({ product, categories, onDone }: { product: Product | null;
                 )}
               </div>
             ))}</div>
-            <div className="flex gap-2">
+            <div className="flex flex-col gap-2 sm:flex-row">
               <input className={inputCls} value={newBatch} onChange={(e) => setNewBatch(e.target.value)} placeholder="Batch / age (e.g. Autumn 2026)" maxLength={64} />
               <input className={inputCls} type="date" aria-label="Batch potting date" value={newBatchDate} onChange={(e) => setNewBatchDate(e.target.value)} />
               <Btn onClick={addBatch}>Add batch</Btn>
@@ -311,7 +311,7 @@ export default function ProductsView({ role }: { role: 'owner' | 'staff' }) {
 
   return (
     <div className="space-y-3">
-      <div className="flex gap-2">
+      <div className="flex flex-col gap-2 sm:flex-row">
         <input className={inputCls} placeholder="Search name, SKU, botanical…" value={q} onChange={(e) => setQ(e.target.value)} />
         {role === 'owner' && <Btn primary onClick={() => setEditing('new')}>Add</Btn>}
       </div>
@@ -330,9 +330,9 @@ export default function ProductsView({ role }: { role: 'owner' | 'staff' }) {
                     className="h-14 w-14 rounded object-cover"
                   />
                 ) : <div className="h-14 w-14 rounded bg-stone-200" />}
-                <div className="flex-1">
-                  <p className="font-medium">{p.name}</p>
-                  <p className="text-sm text-stone-600">
+                <div className="min-w-0 flex-1">
+                  <p className="break-words font-medium">{p.name}</p>
+                  <p className="break-words text-sm text-stone-600">
                     {p.sku}{p.pot_size ? ` · ${p.pot_size}` : ''}
                     {p.category_id && ` · ${categories.find((category) => category.id === p.category_id)?.name ?? 'Category'}`}
                   </p>

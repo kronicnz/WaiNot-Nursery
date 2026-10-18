@@ -5,7 +5,7 @@ import { productPatchSchema } from '../../../../lib/validation';
 
 export const prerender = false;
 
-const idSchema = z.string().uuid();
+const idSchema = z.uuid();
 
 export const GET: APIRoute = async ({ locals, params }) => {
   if (!idSchema.safeParse(params.id).success) return fail('Invalid id');

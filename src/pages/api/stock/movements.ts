@@ -1,4 +1,5 @@
 import type { APIRoute } from 'astro';
+import { z } from 'zod';
 import { dbError, fail, json } from '../../../lib/api';
 import { movementBatchSchema, movementSchema } from '../../../lib/validation';
 import { rateLimit } from '../../../lib/rateLimit';
@@ -17,7 +18,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
   }
   const isBatch = typeof raw === 'object' && raw !== null && 'movements' in raw;
   const parsed = isBatch ? movementBatchSchema.safeParse(raw) : movementSchema.safeParse(raw);
-  if (!parsed.success) return fail('Validation failed', 400, parsed.error.flatten());
+  if (!parsed.success) return fail('Validation failed', 400, z.flattenError<unknown>(parsed.error));
 
   const list = isBatch ? (parsed.data as { movements: unknown[] }).movements : [parsed.data];
   const results = [];

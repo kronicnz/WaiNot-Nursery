@@ -5,7 +5,7 @@ import { dbError, fail, json, requireOwner } from '../../../../lib/api';
 export const prerender = false;
 
 const MAX_BYTES = 5 * 1024 * 1024;
-const idSchema = z.string().uuid();
+const idSchema = z.uuid();
 
 function sniff(b: Uint8Array): { ext: string; mime: string } | null {
   if (b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff) return { ext: 'jpg', mime: 'image/jpeg' };

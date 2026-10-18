@@ -7,7 +7,7 @@ export const prerender = false;
 export const GET: APIRoute = async ({ locals, url }) => {
   const q = parseQuery(
     url.searchParams,
-    z.object({ product_id: z.string().uuid().optional() }),
+    z.object({ product_id: z.uuid().optional() }),
   );
   if ('error' in q) return q.error;
 

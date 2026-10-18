@@ -1,5 +1,5 @@
 import type { APIContext } from 'astro';
-import type { ZodType } from 'zod';
+import { z, type ZodType } from 'zod';
 
 export function json(data: unknown, status = 200, headers: HeadersInit = {}) {
   return new Response(JSON.stringify(data), {
@@ -23,13 +23,13 @@ export async function parseBody<T>(request: Request, schema: ZodType<T>): Promis
     return { error: fail('Invalid JSON body') };
   }
   const r = schema.safeParse(raw);
-  if (!r.success) return { error: fail('Validation failed', 400, r.error.flatten()) };
+  if (!r.success) return { error: fail('Validation failed', 400, z.flattenError(r.error)) };
   return { data: r.data };
 }
 
 export function parseQuery<T>(params: URLSearchParams, schema: ZodType<T>): { data: T } | { error: Response } {
   const r = schema.safeParse(Object.fromEntries(params));
-  if (!r.success) return { error: fail('Validation failed', 400, r.error.flatten()) };
+  if (!r.success) return { error: fail('Validation failed', 400, z.flattenError(r.error)) };
   return { data: r.data };
 }
 

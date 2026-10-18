@@ -146,10 +146,10 @@ export default function ScanView({ role }: { role: 'owner' | 'staff' }) {
       {product && (
         <div className="space-y-3 rounded-xl border bg-white p-4 shadow">
           <div className="flex gap-3">
-            {product.image_path && <img src={`/api/products/${product.id}/image`} alt="" className="h-20 w-20 rounded-lg object-cover" />}
-            <div>
-              <h2 className="text-lg font-semibold">{product.name}</h2>
-              <p className="text-sm text-stone-600">
+            {product.image_path && <img src={`/api/products/${product.id}/image`} alt="" className="h-20 w-20 shrink-0 rounded-lg object-cover" />}
+            <div className="min-w-0">
+              <h2 className="break-words text-lg font-semibold">{product.name}</h2>
+              <p className="break-words text-sm text-stone-600">
                 {product.sku}
                 {product.pot_size ? ` · ${product.pot_size}` : ''}
               </p>

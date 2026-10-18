@@ -1,11 +1,12 @@
 import { z } from 'zod';
 
-const uuid = z.string().uuid();
+const uuid = z.uuid();
+const email = z.string().trim().max(254).pipe(z.email());
 const text = (max: number) => z.string().trim().min(1).max(max);
 const optText = (max: number) =>
   z.string().trim().max(max).optional().nullable().transform((v) => (v ? v : null));
 
-export const loginSchema = z.object({ email: z.string().trim().email().max(254), password: z.string().min(1).max(200) });
+export const loginSchema = z.object({ email, password: z.string().min(1).max(200) });
 
 export const productSchema = z.object({
   sku: text(64),
@@ -16,7 +17,7 @@ export const productSchema = z.object({
   price: z.number().min(0).max(100000).nullable().optional(),
   reorder_level: z.number().int().min(0).max(1_000_000).default(20),
   public_description: z.string().trim().max(3000).optional(),
-  public_image_url: z.string().trim().url().max(2000).nullable().optional(),
+  public_image_url: z.string().trim().max(2000).pipe(z.url()).nullable().optional(),
   public_image_alt: z.string().trim().max(300).optional(),
   notes: optText(2000),
   active: z.boolean().default(true),
@@ -61,7 +62,7 @@ export const stocktakeLineSchema = z.object({
 });
 
 export const userInviteSchema = z.object({
-  email: z.string().trim().email().max(254),
+  email,
   name: text(100),
   role: z.enum(['owner', 'staff']).default('staff'),
 });

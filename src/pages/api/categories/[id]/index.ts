@@ -8,7 +8,7 @@ export const prerender = false;
 export const PATCH: APIRoute = async (ctx) => {
   const denied = requireOwner(ctx);
   if (denied) return denied;
-  if (!z.string().uuid().safeParse(ctx.params.id).success) return fail('Invalid id');
+  if (!z.uuid().safeParse(ctx.params.id).success) return fail('Invalid id');
   const body = await parseBody(ctx.request, categorySchema);
   if ('error' in body) return body.error;
   const { data, error } = await ctx.locals.supabase.from('categories').update(body.data).eq('id', ctx.params.id!).select().maybeSingle();
@@ -19,7 +19,7 @@ export const PATCH: APIRoute = async (ctx) => {
 export const DELETE: APIRoute = async (ctx) => {
   const denied = requireOwner(ctx);
   if (denied) return denied;
-  if (!z.string().uuid().safeParse(ctx.params.id).success) return fail('Invalid id');
+  if (!z.uuid().safeParse(ctx.params.id).success) return fail('Invalid id');
   const sb = ctx.locals.supabase;
   const { count, error: countError } = await sb
     .from('products')

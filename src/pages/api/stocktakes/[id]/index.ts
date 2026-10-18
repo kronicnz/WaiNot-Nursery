@@ -6,7 +6,7 @@ export const prerender = false;
 
 // Returns the stocktake, its counted lines, and the expected (system) quantities for comparison.
 export const GET: APIRoute = async ({ locals, params }) => {
-  if (!z.string().uuid().safeParse(params.id).success) return fail('Invalid id');
+  if (!z.uuid().safeParse(params.id).success) return fail('Invalid id');
   const sb = locals.supabase;
   const { data: st, error } = await sb.from('stocktakes').select('*').eq('id', params.id!).maybeSingle();
   if (error) return dbError(error);
