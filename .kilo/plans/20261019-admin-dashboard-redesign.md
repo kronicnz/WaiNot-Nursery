@@ -1,6 +1,7 @@
 # WaiNot Nursery — Admin Dashboard UX Redesign
 
-**Status:** Proposal only — no application code changed.
+**Status:** Implemented — the dashboard hierarchy, stock-exception panel, summary metrics, responsive inventory preview, and recent-activity panel are updated in the existing admin app.
+**Implementation note:** Low-stock counts follow the existing product-level `low_stock` view and reorder threshold; the dashboard's existing batch filters and zero-stock rules remain unchanged.
 **Goal:** Make the existing `/admin` overview faster to scan and safer to use during daily nursery stock work, especially on mobile.
 
 ## Repository context reviewed

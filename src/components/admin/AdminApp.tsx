@@ -9,7 +9,7 @@ import ScanView from './ScanView';
 import StocktakeView from './StocktakeView';
 
 const TABS = [
-  { id: 'dashboard', label: 'Overview', icon: 'home' },
+  { id: 'dashboard', label: 'Dashboard', icon: 'home' },
   { id: 'activity', label: 'Activity', icon: 'clock' },
   { id: 'manage', label: 'Setup', icon: 'settings', owner: true },
   { id: 'products', label: 'Products', icon: 'plant' },
@@ -128,7 +128,7 @@ export default function AdminApp() {
 
   if (!me) return <p className="p-6 text-stone-500" role="status">Loading your workspace…</p>;
   const tabs = TABS.filter((t) => !('owner' in t) || me.role === 'owner');
-  const pageTitle = TABS.find((item) => item.id === tab)?.label ?? 'Overview';
+  const pageTitle = TABS.find((item) => item.id === tab)?.label ?? 'Dashboard';
 
   const logout = async () => {
     await api('/api/auth/logout', { method: 'POST' }).catch(() => undefined);

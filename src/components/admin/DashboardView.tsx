@@ -1,18 +1,8 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
-import { api, type Category, type Product } from '../../lib/client/api';
+import { api, type Category, type Movement, type Product } from '../../lib/client/api';
 import { Msg } from './ui';
 
 interface Low { product_id: string; sku: string; name: string; reorder_level: number; total_qty: number }
-interface Mov {
-  id: string;
-  delta: number;
-  reason: string;
-  created_at: string;
-  note: string | null;
-  products: { name: string; sku: string };
-  batches: { batch_code: string } | null;
-  locations: { name: string } | null;
-}
 type WorkflowTab = 'manage' | 'products' | 'scan' | 'stocktake' | 'activity';
 type BatchFilter = 'all' | 'attention' | 'low' | 'empty';
 
@@ -56,12 +46,12 @@ export default function DashboardView({
   const [categories, setCategories] = useState<Category[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [low, setLow] = useState<Low[]>([]);
-  const [moves, setMoves] = useState<Mov[]>([]);
+  const [moves, setMoves] = useState<Movement[]>([]);
   const [err, setErr] = useState('');
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<BatchFilter>('all');
   const [search, setSearch] = useState('');
-  const [updatedAt, setUpdatedAt] = useState(new Date());
+  const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -71,7 +61,7 @@ export default function DashboardView({
         api<Category[]>('/api/categories'),
         api<{ items: Product[]; total: number }>('/api/products?limit=100'),
         api<Low[]>('/api/stock/low'),
-        api<{ items: Mov[] }>('/api/movements?limit=8'),
+        api<{ items: Movement[] }>('/api/movements?limit=8'),
       ]);
       const productPages = await Promise.all(
         Array.from(
@@ -107,8 +97,12 @@ export default function DashboardView({
       })),
   ), [products]);
   const zeroStockBatches = activeBatches.filter((batch) => batch.qty === 0);
+  const emptyBatchProductIds = new Set(zeroStockBatches.map((batch) => batch.product_id));
+  const outOfStockProducts = low.filter((product) => product.total_qty === 0 && !emptyBatchProductIds.has(product.product_id));
+  const lowStockProducts = low.filter((product) => product.total_qty > 0);
   const totalStock = products.reduce((total, product) => total + (product.total_qty ?? 0), 0);
   const lowBatchCount = activeBatches.filter((batch) => batch.qty > 0 && batch.reorder_level > 0 && batch.qty <= batch.reorder_level).length;
+  const activeProductCount = products.filter((product) => product.active).length;
   const hasProducts = products.length > 0;
   const allProductsHaveBatches = hasProducts && products.every((product) =>
     product.batches?.some((batch) => batch.archived_at === null),
@@ -143,18 +137,16 @@ export default function DashboardView({
     count: products.filter((product) => product.category_id === category.id).length,
   })).sort((a, b) => b.count - a.count).slice(0, 5);
   const maxCategoryCount = Math.max(1, ...categoryCounts.map((category) => category.count));
-  const greeting = new Date().getHours() < 12 ? 'Good morning' : new Date().getHours() < 18 ? 'Good afternoon' : 'Good evening';
-
   return (
     <div className="space-y-6 pb-8">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="text-sm font-medium text-[#6f7b70]">{new Date().toLocaleDateString('en-NZ', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</p>
-          <h1 className="mt-1 text-3xl font-semibold tracking-tight text-[#1d3428] sm:text-4xl">{greeting}</h1>
-          <p className="mt-2 text-sm text-[#69766d] sm:text-base">Here’s what’s happening across your nursery today.</p>
+          <h1 className="mt-1 text-3xl font-semibold tracking-tight text-[#1d3428]">Dashboard</h1>
+          <p className="mt-2 text-sm text-[#69766d] sm:text-base">Your nursery stock position and the items that need attention.</p>
         </div>
         <div className="flex items-center gap-2">
-          <span className="hidden text-xs text-[#849087] sm:inline" aria-live="polite">Updated {updatedAt.toLocaleTimeString('en-NZ', { hour: 'numeric', minute: '2-digit' })}</span>
+          {updatedAt && <span className="hidden text-xs text-[#849087] sm:inline" aria-live="polite">Updated {updatedAt.toLocaleTimeString('en-NZ', { hour: 'numeric', minute: '2-digit' })}</span>}
           <button
             type="button"
             onClick={() => void load()}
@@ -167,7 +159,7 @@ export default function DashboardView({
         </div>
       </div>
 
-      <nav aria-label="Quick actions" className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+      <nav aria-label="Quick actions" className="grid grid-cols-2 gap-2 sm:grid-cols-3">
         {([
           ['scan', 'Move stock', 'Scan in, out or adjust', 'scan'],
           ['stocktake', 'Stocktake', 'Count and reconcile', 'check'],
@@ -177,14 +169,14 @@ export default function DashboardView({
             key={tab}
             type="button"
             onClick={() => onNavigate(tab)}
-            className="group flex items-center gap-3 rounded-2xl border border-[#2c5a3e] bg-[#2c5a3e] p-3.5 text-left text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-[#244d34] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#2c5a3e]"
+            className={`group flex min-h-12 items-center gap-3 rounded-xl border p-3 text-left transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#2c5a3e] ${tab === 'scan' ? 'col-span-2 border-[#2c5a3e] bg-[#2c5a3e] text-white shadow-sm hover:bg-[#244d34] sm:col-span-1' : 'border-[#dce4d9] bg-white text-[#36543e] hover:border-[#b8c9b9] hover:bg-[#f7faf5]'}`}
           >
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/15"><Icon name={icon} /></span>
+            <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${tab === 'scan' ? 'bg-white/15' : 'bg-[#edf4eb]'}`}><Icon name={icon} /></span>
             <span className="min-w-0 flex-1">
               <span className="block text-sm font-semibold">{title}</span>
-              <span className="block truncate text-xs text-[#d3e3d4]">{hint}</span>
+              <span className={`block truncate text-xs ${tab === 'scan' ? 'text-[#d3e3d4]' : 'text-[#77867a]'}`}>{hint}</span>
             </span>
-            <Icon name="arrow" className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+            <Icon name="arrow" className={`h-4 w-4 transition-transform group-hover:translate-x-1 ${tab === 'scan' ? 'text-white' : 'text-[#829185]'}`} />
           </button>
         ))}
       </nav>
@@ -198,66 +190,100 @@ export default function DashboardView({
         </Msg>
       )}
 
-      {!loading && role === 'owner' && nextStep && (
-        <section className="relative isolate overflow-hidden rounded-[1.65rem] bg-[#1d3b2d] px-5 py-6 text-white shadow-[0_18px_50px_rgba(25,58,39,.15)] sm:px-8 sm:py-7">
-          <div aria-hidden="true" className="absolute -right-14 -top-28 -z-10 h-80 w-80 rounded-full border-[48px] border-white/[0.045]" />
-          <div aria-hidden="true" className="absolute right-24 -bottom-32 -z-10 h-64 w-64 rounded-full bg-[#789369]/20 blur-3xl" />
-          <div className="grid items-center gap-6 md:grid-cols-[minmax(0,1fr)_minmax(230px,320px)]">
-            <div>
-              <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/[0.08] px-3 py-1.5 text-xs font-medium text-[#d6e5d6]">
-                <span className="h-1.5 w-1.5 rounded-full bg-[#c2d6a9]" />
-                YOUR NEXT STEP
-              </div>
-              <h2 className="mt-4 max-w-xl text-2xl font-semibold tracking-tight sm:text-[2rem]">{nextStep.title}</h2>
-              <p className="mt-2 max-w-lg text-sm leading-6 text-[#cfddd0]">{nextStep.description}</p>
-              <button
-                type="button"
-                onClick={() => onNavigate(nextStep.tab)}
-                className="group mt-5 inline-flex min-h-11 items-center gap-2 rounded-xl bg-[#e4ebd8] px-4 py-2.5 text-sm font-semibold text-[#254432] shadow-sm transition hover:-translate-y-0.5 hover:bg-white"
-              >
-                {nextStep.action}
-                <Icon name="arrow" className="h-4 w-4 transition-transform group-hover:translate-x-1" />
-              </button>
-            </div>
-            <div className="rounded-2xl border border-white/10 bg-white/[0.07] p-4 backdrop-blur-sm sm:p-5">
-              <div className="flex items-center justify-between">
-                <p className="text-sm font-medium text-[#e5eee3]">Getting started</p>
-                <span className="text-sm font-semibold text-white">{completeSteps} <span className="font-normal text-[#bdcfc0]">of {workflow.length}</span></span>
-              </div>
-              <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-white/15">
-                <div className="h-full rounded-full bg-[#c8d9a9] transition-all duration-700" style={{ width: `${(completeSteps / workflow.length) * 100}%` }} />
-              </div>
-              <ol className="mt-4 space-y-2.5">
-                {workflow.map((step, index) => (
-                  <li key={step.title} className="flex items-center gap-3 text-sm">
-                    <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full ${step.complete ? 'bg-[#c8d9a9] text-[#244330]' : 'border border-white/25 text-[#d3dfd2]'}`}>
-                      {step.complete ? <Icon name="check" className="h-3.5 w-3.5" /> : <span className="text-[11px]">{index + 1}</span>}
-                    </span>
-                    <span className={step.complete ? 'text-[#d3dfd2]' : 'font-medium text-white'}>{step.title}</span>
-                    {step.complete && <span className="ml-auto text-[11px] text-[#b9cbb9]">Done</span>}
-                  </li>
-                ))}
-              </ol>
-            </div>
-          </div>
-        </section>
-      )}
-
-      {!loading && role === 'staff' && nextStep && (
-        <div className="flex items-start gap-3 rounded-2xl border border-[#e6ddc4] bg-[#fbf7eb] p-4 text-sm text-[#695a34]">
-          <Icon name="alert" className="mt-0.5 h-5 w-5 shrink-0" />
-          <p>Setup is still in progress. Ask an owner to finish <b>{nextStep.title.toLowerCase()}</b>; you can continue with scanning and stock counts.</p>
-        </div>
-      )}
-
       <section aria-label="Inventory summary" className="grid grid-cols-2 gap-3 xl:grid-cols-4">
-        <Metric icon="plant" label="Plant varieties" value={loading ? '—' : numberFormat.format(products.length)} detail={`${numberFormat.format(categories.length)} categories`} tone="green" onClick={() => onNavigate('products')} />
-        <Metric icon="layers" label="Active batches" value={loading ? '—' : numberFormat.format(activeBatches.length)} detail={`${numberFormat.format(zeroStockBatches.length)} ready to archive`} tone="sand" onClick={() => { setFilter('all'); setSearch(''); }} />
-        <Metric icon="box" label="Units on hand" value={loading ? '—' : numberFormat.format(totalStock)} detail="Across active batches" tone="blue" onClick={() => onNavigate('stocktake')} />
-        <Metric icon="alert" label="Needs attention" value={loading ? '—' : numberFormat.format(lowBatchCount + zeroStockBatches.length)} detail={`${lowBatchCount} low · ${zeroStockBatches.length} empty`} tone="rose" onClick={() => { setFilter('attention'); setSearch(''); }} />
+        <Metric icon="box" label="Units on hand" value={loading || err ? '—' : numberFormat.format(totalStock)} detail="Across active products" tone="blue" onClick={() => onNavigate('stocktake')} />
+        <Metric icon="alert" label="Low-stock products" value={loading || err ? '—' : numberFormat.format(lowStockProducts.length)} detail="Positive stock at or below reorder" tone="rose" onClick={() => onNavigate('products')} />
+        <Metric icon="layers" label="Empty batches" value={loading || err ? '—' : numberFormat.format(zeroStockBatches.length)} detail="Active batches with no stock" tone="sand" onClick={() => { setFilter('empty'); setSearch(''); }} />
+        <Metric icon="plant" label="Active products" value={loading || err ? '—' : numberFormat.format(activeProductCount)} detail={`${numberFormat.format(categories.length)} categories`} tone="green" onClick={() => onNavigate('products')} />
       </section>
 
-      <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1.65fr)_minmax(300px,.85fr)]">
+      <section aria-labelledby="stock-exceptions-title" className="rounded-2xl border border-[#e5e9e2] bg-white shadow-[0_4px_20px_rgba(29,52,40,.035)]">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#edf0eb] px-4 py-4 sm:px-5">
+          <div>
+            <h2 id="stock-exceptions-title" className="text-base font-semibold text-[#26392d]">Stock exceptions</h2>
+            <p className="mt-1 text-sm text-[#7c887e]">Low-stock products and empty active batches</p>
+          </div>
+          <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${lowStockProducts.length + outOfStockProducts.length + zeroStockBatches.length ? 'bg-[#fff2e6] text-[#8a4b21]' : 'bg-[#edf5ec] text-[#3e6945]'}`}>
+            {loading ? 'Checking stock' : lowStockProducts.length + outOfStockProducts.length + zeroStockBatches.length ? `${lowStockProducts.length + outOfStockProducts.length + zeroStockBatches.length} need review` : 'All clear'}
+          </span>
+        </div>
+        {loading ? (
+          <div className="space-y-2 p-4 sm:p-5" role="status" aria-label="Loading stock exceptions">
+            <div className="h-16 animate-pulse rounded-xl bg-[#f3f5f1]" />
+            <div className="h-16 animate-pulse rounded-xl bg-[#f3f5f1]" />
+          </div>
+        ) : err ? (
+          <p className="px-4 py-6 text-sm text-[#8b3e35] sm:px-5">Stock exceptions are unavailable. Refresh the dashboard to try again.</p>
+        ) : lowStockProducts.length === 0 && outOfStockProducts.length === 0 && zeroStockBatches.length === 0 ? (
+          <div className="m-4 flex items-center gap-3 rounded-xl bg-[#f2f7ef] p-4 text-sm text-[#456b4b] sm:m-5">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white"><Icon name="check" className="h-4 w-4" /></span>
+            No low-stock products or empty active batches.
+          </div>
+        ) : (
+          <ul className="grid min-w-0 grid-cols-1 gap-2 p-4 sm:grid-cols-2 sm:p-5">
+            {zeroStockBatches.slice(0, 4).map((batch) => (
+              <li key={batch.id} className="min-w-0">
+                <button
+                  type="button"
+                  onClick={() => onNavigate('products')}
+                  aria-label={`Inspect empty batch ${batch.batch_code} for ${batch.product_name}`}
+                  className="flex min-h-16 min-w-0 w-full items-center gap-3 rounded-xl border border-[#f0ddda] bg-[#fff8f6] p-3 text-left transition hover:border-[#e7c4be] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#a64b3f]"
+                >
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white text-[#a64b3f]"><Icon name="box" className="h-4 w-4" /></span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm font-semibold text-[#493b37]">{batch.product_name}</span>
+                    <span className="block truncate text-xs text-[#806d67]">{batch.batch_code} · {batch.product_sku} · 0 on hand</span>
+                  </span>
+                  <span className="shrink-0 rounded-full bg-[#f7e6e3] px-2 py-1 text-[11px] font-semibold text-[#873e35]">Empty</span>
+                </button>
+              </li>
+            ))}
+            {outOfStockProducts.slice(0, 4).map((product) => (
+              <li key={product.product_id} className="min-w-0">
+                <button
+                  type="button"
+                  onClick={() => onNavigate('products')}
+                  aria-label={`Inspect out-of-stock product ${product.name}, SKU ${product.sku}`}
+                  className="flex min-h-16 min-w-0 w-full items-center gap-3 rounded-xl border border-[#f0ddda] bg-[#fff8f6] p-3 text-left transition hover:border-[#e7c4be] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#a64b3f]"
+                >
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white text-[#a64b3f]"><Icon name="alert" className="h-4 w-4" /></span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm font-semibold text-[#493b37]">{product.name}</span>
+                    <span className="block truncate text-xs text-[#806d67]">{product.sku} · 0 on hand · reorder at {numberFormat.format(product.reorder_level)}</span>
+                  </span>
+                  <span className="shrink-0 rounded-full bg-[#f7e6e3] px-2 py-1 text-[11px] font-semibold text-[#873e35]">Out of stock</span>
+                </button>
+              </li>
+            ))}
+            {lowStockProducts.slice(0, 4).map((product) => (
+              <li key={product.product_id} className="min-w-0">
+                <button
+                  type="button"
+                  onClick={() => onNavigate('products')}
+                  aria-label={`Inspect low-stock product ${product.name}, SKU ${product.sku}`}
+                  className="flex min-h-16 min-w-0 w-full items-center gap-3 rounded-xl border border-[#f0e3ce] bg-[#fffaf2] p-3 text-left transition hover:border-[#e3c99f] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#94601f]"
+                >
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white text-[#94601f]"><Icon name="alert" className="h-4 w-4" /></span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm font-semibold text-[#493f32]">{product.name}</span>
+                    <span className="block truncate text-xs text-[#806f5d]">{product.sku} · {numberFormat.format(product.total_qty)} on hand · reorder at {numberFormat.format(product.reorder_level)}</span>
+                  </span>
+                  <span className="shrink-0 rounded-full bg-[#f5ead6] px-2 py-1 text-[11px] font-semibold text-[#76501c]">Low stock</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+        {!loading && (lowStockProducts.length > 4 || outOfStockProducts.length > 4 || zeroStockBatches.length > 4) && (
+          <div className="border-t border-[#edf0eb] px-4 py-3 text-right sm:px-5">
+            <button type="button" onClick={() => onNavigate('products')} className="inline-flex min-h-9 items-center gap-1 text-sm font-medium text-[#41634b] hover:text-[#1e3e2b]">
+              Review all exceptions <Icon name="arrow" className="h-4 w-4" />
+            </button>
+          </div>
+        )}
+      </section>
+
+      <div className="grid min-w-0 grid-cols-1 items-start gap-5 xl:grid-cols-[minmax(0,1.65fr)_minmax(300px,.85fr)]">
         <section className="min-w-0 overflow-hidden rounded-2xl border border-[#e5e9e2] bg-white shadow-[0_4px_20px_rgba(29,52,40,.035)]">
           <div className="flex flex-wrap items-start justify-between gap-3 border-b border-[#edf0eb] px-4 py-4 sm:px-5">
             <div>
@@ -304,6 +330,8 @@ export default function DashboardView({
               <div className="space-y-2" aria-label="Loading batch inventory">
                 {[0, 1, 2].map((item) => <div key={item} className="h-[76px] animate-pulse rounded-xl bg-[#f3f5f1]" />)}
               </div>
+            ) : err ? (
+              <p className="rounded-xl bg-[#fff5f3] px-4 py-6 text-center text-sm text-[#8b3e35]">Inventory preview is unavailable. Refresh the dashboard to try again.</p>
             ) : filteredBatches.length > 0 ? (
               <div className="divide-y divide-[#edf0eb]">
                 {filteredBatches.slice(0, 8).map((batch) => (
@@ -326,47 +354,49 @@ export default function DashboardView({
         </section>
 
         <div className="space-y-5">
-          <section className="rounded-2xl border border-[#e5e9e2] bg-white p-4 shadow-[0_4px_20px_rgba(29,52,40,.035)] sm:p-5">
-            <div className="flex items-start justify-between">
+          <section aria-labelledby="recent-activity-title" className="overflow-hidden rounded-2xl border border-[#e5e9e2] bg-white shadow-[0_4px_20px_rgba(29,52,40,.035)]">
+            <div className="flex items-center justify-between gap-3 border-b border-[#edf0eb] px-4 py-4 sm:px-5">
               <div>
-                <h2 className="text-base font-semibold text-[#26392d]">Stock alerts</h2>
-                <p className="mt-1 text-sm text-[#7c887e]">Items to take a closer look at</p>
+                <h2 id="recent-activity-title" className="text-base font-semibold text-[#26392d]">Recent activity</h2>
+                <p className="mt-1 text-sm text-[#7c887e]">Latest changes to your stock</p>
               </div>
-              <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${low.length + zeroStockBatches.length ? 'bg-[#fff2e6] text-[#9d572b]' : 'bg-[#edf5ec] text-[#47734d]'}`}>
-                {low.length + zeroStockBatches.length ? `${low.length + zeroStockBatches.length} alerts` : 'All clear'}
-              </span>
+              <button type="button" onClick={() => onNavigate('activity')} className="inline-flex min-h-9 shrink-0 items-center gap-1 text-sm font-medium text-[#41634b] hover:text-[#1e3e2b]">
+                View history <Icon name="arrow" className="h-4 w-4" />
+              </button>
             </div>
-            {low.length === 0 && zeroStockBatches.length === 0 ? (
-              <div className="mt-4 flex items-center gap-3 rounded-xl bg-[#f2f7ef] p-3 text-sm text-[#54745a]">
-                <span className="flex h-8 w-8 items-center justify-center rounded-full bg-white"><Icon name="check" className="h-4 w-4" /></span>
-                Stock levels look healthy.
+            {loading ? (
+              <div className="space-y-2 p-4 sm:p-5" role="status" aria-label="Loading recent activity">
+                {[0, 1, 2].map((item) => <div key={item} className="h-14 animate-pulse rounded-xl bg-[#f3f5f1]" />)}
               </div>
-            ) : (
-              <ul className="mt-3 space-y-2">
-                {low.slice(0, 4).map((product) => (
-                  <li key={product.product_id} className="flex items-center gap-3 rounded-xl bg-[#fff8f1] p-3">
-                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white text-[#bb7541]"><Icon name="alert" className="h-4 w-4" /></span>
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate text-sm font-medium text-[#493b2f]">{product.name}</span>
-                      <span className="text-xs text-[#8b7b6e]">{product.total_qty} on hand · reorder at {product.reorder_level} · suggest {Math.max(0, product.reorder_level - product.total_qty)}</span>
+            ) : err ? (
+              <p className="px-4 py-6 text-sm text-[#8b3e35] sm:px-5">Recent activity is unavailable. Refresh the dashboard to try again.</p>
+            ) : moves.length ? (
+              <ul className="divide-y divide-[#edf0eb]">
+                {moves.slice(0, 5).map((movement) => (
+                  <li key={movement.id} className="flex min-w-0 items-center gap-3 px-4 py-3 sm:px-5">
+                    <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${movement.delta > 0 ? 'bg-[#edf5eb] text-[#3d6944]' : 'bg-[#fff2e9] text-[#9c5337]'}`}>
+                      <Icon name={movement.delta > 0 ? 'plus' : 'arrow'} className={`h-4 w-4 ${movement.delta < 0 ? 'rotate-180' : ''}`} />
                     </span>
-                  </li>
-                ))}
-                {zeroStockBatches.slice(0, 3).map((batch) => (
-                  <li key={batch.id} className="flex items-center gap-3 rounded-xl bg-[#f8f5ed] p-3">
-                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white text-[#927d45]"><Icon name="box" className="h-4 w-4" /></span>
                     <span className="min-w-0 flex-1">
-                      <span className="block truncate text-sm font-medium text-[#493f2d]">{batch.product_name}</span>
-                      <span className="text-xs text-[#887f6b]">{batch.batch_code} · zero stock</span>
+                      <span className="block truncate text-sm font-medium text-[#34473a]">{movement.products?.name ?? 'Product unavailable'}</span>
+                      <span className="block truncate text-xs text-[#758177]">
+                        {movement.batches?.batch_code ? `${movement.batches.batch_code} · ` : ''}{movement.reason}
+                        {movement.locations?.name ? ` · ${movement.locations.name}` : ''}
+                      </span>
+                    </span>
+                    <span className="shrink-0 text-right">
+                      <span className={`block text-sm font-semibold ${movement.delta > 0 ? 'text-[#3d6944]' : 'text-[#9c5337]'}`} aria-label={`${movement.delta > 0 ? 'Added' : 'Removed'} ${Math.abs(movement.delta)} units`}>
+                        {movement.delta > 0 ? '+' : ''}{numberFormat.format(movement.delta)}
+                      </span>
+                      <time className="block text-[11px] text-[#758177]" dateTime={movement.created_at} title={new Date(movement.created_at).toLocaleString('en-NZ')}>
+                        {relativeTime(movement.created_at)}
+                      </time>
                     </span>
                   </li>
                 ))}
               </ul>
-            )}
-            {role === 'owner' && zeroStockBatches.length > 0 && (
-              <button type="button" onClick={() => onNavigate('products')} className="mt-3 inline-flex items-center gap-1 text-sm font-medium text-[#536a4f] hover:text-[#2d4b34]">
-                Review empty batches <Icon name="arrow" className="h-4 w-4" />
-              </button>
+            ) : (
+              <p className="px-4 py-6 text-center text-sm text-[#758177] sm:px-5">Stock movements will appear here as your team works.</p>
             )}
           </section>
 
@@ -399,38 +429,35 @@ export default function DashboardView({
         </div>
       </div>
 
-      <section className="overflow-hidden rounded-2xl border border-[#e5e9e2] bg-white shadow-[0_4px_20px_rgba(29,52,40,.035)]">
-        <div className="flex items-center justify-between border-b border-[#edf0eb] px-4 py-4 sm:px-5">
-          <div>
-            <h2 className="text-base font-semibold text-[#26392d]">Recent activity</h2>
-            <p className="mt-1 text-sm text-[#7c887e]">Latest changes to your stock</p>
+      {!loading && nextStep && role === 'owner' && (
+        <section aria-labelledby="setup-title" className="rounded-2xl border border-[#dce5d8] bg-[#f1f6ee] p-4 sm:p-5">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 id="setup-title" className="text-base font-semibold text-[#294532]">Getting started</h2>
+              <p className="mt-1 text-sm text-[#637567]">{completeSteps} of {workflow.length} setup steps complete</p>
+            </div>
+            <button type="button" onClick={() => onNavigate(nextStep.tab)} className="inline-flex min-h-10 items-center gap-2 rounded-lg bg-[#2f6845] px-3 py-2 text-sm font-semibold text-white hover:bg-[#24583a] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#2f6845]">
+              {nextStep.action}<Icon name="arrow" className="h-4 w-4" />
+            </button>
           </div>
-          <Icon name="clock" className="h-5 w-5 text-[#849487]" />
-        </div>
-        {moves.length ? (
-          <ul className="divide-y divide-[#edf0eb]">
-            {moves.slice(0, 5).map((movement) => (
-              <li key={movement.id} className="flex items-center gap-3 px-4 py-3.5 sm:px-5">
-                <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${movement.delta > 0 ? 'bg-[#edf5eb] text-[#4d8055]' : 'bg-[#fff2e9] text-[#b96a3a]'}`}>
-                  <Icon name={movement.delta > 0 ? 'plus' : 'arrow'} className={`h-4 w-4 ${movement.delta < 0 ? 'rotate-180' : ''}`} />
+          <ol className="mt-4 grid gap-2 sm:grid-cols-2">
+            {workflow.map((step) => (
+              <li key={step.title} className="flex min-w-0 items-center gap-2 text-sm">
+                <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full ${step.complete ? 'bg-[#d8e8d4] text-[#315c3a]' : 'border border-[#bac9b7] text-[#657868]'}`}>
+                  {step.complete ? <Icon name="check" className="h-3 w-3" /> : <span className="text-[10px]">•</span>}
                 </span>
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate text-sm font-medium text-[#34473a]">{movement.products.name}</span>
-                  <span className="block truncate text-xs text-[#839087]">
-                    {movement.batches?.batch_code ? `${movement.batches.batch_code} · ` : ''}{movement.reason}
-                  </span>
-                </span>
-                <span className={`text-sm font-semibold ${movement.delta > 0 ? 'text-[#4c8054]' : 'text-[#b96a3a]'}`}>
-                  {movement.delta > 0 ? '+' : ''}{numberFormat.format(movement.delta)}
-                </span>
-                <span className="hidden w-16 text-right text-xs text-[#909a91] sm:block">{relativeTime(movement.created_at)}</span>
+                <span className={`truncate ${step.complete ? 'text-[#647567]' : 'font-medium text-[#34483a]'}`}>{step.title}</span>
               </li>
             ))}
-          </ul>
-        ) : (
-          <div className="px-5 py-8 text-center text-sm text-[#849087]">Stock movements will appear here as your team works.</div>
-        )}
-      </section>
+          </ol>
+        </section>
+      )}
+
+      {!loading && nextStep && role === 'staff' && (
+        <p className="rounded-xl border border-[#e6ddc4] bg-[#fbf7eb] p-3 text-sm text-[#695a34]">
+          Setup is in progress. Ask an owner to finish {nextStep.title.toLowerCase()}; stock movement and stocktake are available.
+        </p>
+      )}
     </div>
   );
 }
@@ -458,17 +485,17 @@ function Metric({
     rose: 'bg-[#f8efec] text-[#aa6851]',
   }[tone];
   return (
-    <button type="button" onClick={onClick} className="rounded-2xl border border-[#e5e9e2] bg-white p-4 text-left shadow-[0_4px_20px_rgba(29,52,40,.035)] transition hover:-translate-y-0.5 hover:border-[#c9d6c6] sm:p-5">
-      <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0">
-          <p className="truncate text-xs font-medium text-[#7c887e] sm:text-sm">{label}</p>
-          <p className="mt-2 text-2xl font-semibold tracking-tight text-[#26392d] sm:text-[1.8rem]">{value}</p>
+    <button type="button" onClick={onClick} className="rounded-2xl border border-[#e5e9e2] bg-white p-4 text-left shadow-[0_4px_20px_rgba(29,52,40,.035)] transition hover:-translate-y-0.5 hover:border-[#c9d6c6] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#2f6845] sm:p-5">
+      <div className="min-w-0">
+        <p className="text-xs font-medium leading-4 text-[#667469] sm:text-sm">{label}</p>
+        <div className="mt-1 flex items-center justify-between gap-2">
+          <p className="text-2xl font-semibold tracking-tight text-[#26392d] sm:text-[1.8rem]">{value}</p>
+          <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg sm:h-10 sm:w-10 ${palette}`}>
+            <Icon name={icon} className="h-[18px] w-[18px]" />
+          </span>
         </div>
-        <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl sm:h-10 sm:w-10 ${palette}`}>
-          <Icon name={icon} className="h-[18px] w-[18px]" />
-        </span>
       </div>
-      <p className="mt-2 truncate text-[11px] text-[#88938a] sm:text-xs">{detail}</p>
+      <p className="mt-2 text-[11px] leading-4 text-[#69786d] sm:text-xs">{detail}</p>
     </button>
   );
 }
@@ -503,9 +530,9 @@ function BatchRow({
         <Icon name="plant" className="h-[18px] w-[18px]" />
       </span>
       <span className="min-w-0 flex-1">
-        <span className="flex min-w-0 items-center gap-2">
-          <span className="truncate text-sm font-semibold text-[#34473a] group-hover:text-[#23432f]">{batch.product_name}</span>
-          <span className={`hidden shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold ${status.cls}`}>{status.label}</span>
+        <span className="flex min-w-0 flex-wrap items-center gap-2">
+          <span className="min-w-0 truncate text-sm font-semibold text-[#34473a] group-hover:text-[#23432f]">{batch.product_name}</span>
+          <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold ${status.cls}`}>{status.label}</span>
         </span>
         <span className="mt-0.5 block truncate text-xs text-[#879188]">{batch.batch_code} <span className="text-[#b1b9b2]">·</span> {batch.product_sku}</span>
         <span className="mt-2 block h-1 max-w-48 overflow-hidden rounded-full bg-[#eff2ed]">
