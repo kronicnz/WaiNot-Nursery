@@ -189,10 +189,10 @@ export default function DashboardView({
 
       {err && (
         <Msg kind="err">
-          <div>{err}</div>
-          <div className="mt-2">
+          <span className="block">{err}</span>
+          <span className="block mt-2">
             <button type="button" className="underline" onClick={() => void load()}>Try again</button>
-          </div>
+          </span>
         </Msg>
       )}
 
