@@ -187,7 +187,14 @@ export default function DashboardView({
         <TransferCard role={role} />
       </nav>
 
-      {err && <Msg kind="err">{err} <button type="button" className="ml-2 underline" onClick={() => void load()}>Try again</button></Msg>}
+      {err && (
+        <Msg kind="err">
+          <div>{err}</div>
+          <div className="mt-2">
+            <button type="button" className="underline" onClick={() => void load()}>Try again</button>
+          </div>
+        </Msg>
+      )}
 
       <ReorderWorksheet products={products} low={low} onNavigate={onNavigate} />
 
