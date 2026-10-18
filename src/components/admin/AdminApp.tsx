@@ -1,14 +1,16 @@
 import { useEffect, useState } from 'react';
 import { api, type Me } from '../../lib/client/api';
-import { clearLocalData } from '../../lib/client/offline';
+import { clearLocalData, flushQueue, listQueue } from '../../lib/client/offline';
 import DashboardView from './DashboardView';
 import ManageView from './ManageView';
+import ActivityView from './ActivityView';
 import ProductsView from './ProductsView';
 import ScanView from './ScanView';
 import StocktakeView from './StocktakeView';
 
 const TABS = [
   { id: 'dashboard', label: 'Overview', icon: 'home' },
+  { id: 'activity', label: 'Activity', icon: 'clock' },
   { id: 'manage', label: 'Setup', icon: 'settings', owner: true },
   { id: 'products', label: 'Products', icon: 'plant' },
   { id: 'scan', label: 'Stock movement', icon: 'scan' },
@@ -22,7 +24,34 @@ function NavIcon({ name }: { name: (typeof TABS)[number]['icon'] }) {
   if (name === 'settings') return <svg viewBox="0 0 24 24" aria-hidden="true" {...common}><path d="M12 8.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7Z" /><path d="m19.4 15 .1.1 1 1.8-1.8 3.1-2-.5a8 8 0 0 1-1.6.9l-.6 2.1h-3.6l-.6-2.1a8 8 0 0 1-1.6-.9l-2 .5-1.8-3.1 1.5-1.5a8 8 0 0 1 0-1.8l-1.5-1.5 1.8-3.1 2 .5a8 8 0 0 1 1.6-.9l.6-2.1h3.6l.6 2.1a8 8 0 0 1 1.6.9l2-.5 1.8 3.1-1.5 1.5c.1.6.1 1.2 0 1.8Z" /></svg>;
   if (name === 'plant') return <svg viewBox="0 0 24 24" aria-hidden="true" {...common}><path d="M12 21v-9M12 12C5 12 4 7 4 4c5 0 8 2 8 8ZM12 15c0-5 3-8 8-8 0 5-2 8-8 8ZM6 21h12" /></svg>;
   if (name === 'scan') return <svg viewBox="0 0 24 24" aria-hidden="true" {...common}><path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3M7 12h10" /></svg>;
+  if (name === 'clock') return <svg viewBox="0 0 24 24" aria-hidden="true" {...common}><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg>;
   return <svg viewBox="0 0 24 24" aria-hidden="true" {...common}><path d="M5 4h14v16H5zM8 8h8M8 12h8M8 16h4" /></svg>;
+}
+
+function SyncBanner({ online, pending, onSync }: { online: boolean; pending: number; onSync: () => Promise<void> }) {
+  if (online && pending === 0) return null;
+  return (
+    <div className={`mb-5 flex items-center justify-between gap-3 rounded-2xl border px-4 py-3 text-sm sm:px-5 ${online ? 'border-[#e6ddc4] bg-[#fbf7eb] text-[#695a34]' : 'border-[#f3d4d4] bg-[#fff0f0] text-[#9a3b3b]'}`}>
+      <div className="flex items-center gap-2.5">
+        <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${online ? 'bg-[#f3ecbf]' : 'bg-[#f7cccc]'}`}>
+          <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4">
+            {online ? <><path d="M20 7v5h-5" /><path d="M4 17v-5h5" /><path d="M5.6 9a7 7 0 0 1 11.8-2L20 12M4 12l2.6 5a7 7 0 0 0 11.8-2" /></> : <><circle cx="12" cy="12" r="9" /><path d="M3 3l18 18" /></>}
+          </svg>
+        </span>
+        <span>
+          <span className="block font-medium">{online ? 'Syncing…' : 'You are offline'}</span>
+          <span className="block text-xs opacity-80">
+            {pending > 0 ? `${pending} scan${pending === 1 ? '' : 's'} waiting to sync` : 'Connect to the network to sync'}
+          </span>
+        </span>
+      </div>
+      {online && pending > 0 && (
+        <button type="button" onClick={onSync} className="inline-flex min-h-9 items-center rounded-lg bg-[#6b5a1f] px-3 text-xs font-semibold text-white">
+          Sync now
+        </button>
+      )}
+    </div>
+  );
 }
 
 export default function AdminApp() {
@@ -31,12 +60,35 @@ export default function AdminApp() {
     const initial = location.hash.slice(1);
     return TABS.some((candidate) => candidate.id === initial) ? initial as Tab : 'dashboard';
   });
+  const [online, setOnline] = useState<boolean>(navigator.onLine);
+  const [pending, setPending] = useState(0);
 
   useEffect(() => {
     api<Me>('/api/auth/me').then(setMe);
     if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => undefined);
   }, []);
   useEffect(() => { location.hash = tab; }, [tab]);
+
+  useEffect(() => {
+    let alive = true;
+    const refresh = async () => {
+      if (!alive) return;
+      setOnline(navigator.onLine);
+      try { setPending((await listQueue()).length); } catch { /* ignore */ }
+    };
+    const onOnline = () => { setOnline(true); refresh(); };
+    const onOffline = () => { setOnline(false); refresh(); };
+    window.addEventListener('online', onOnline);
+    window.addEventListener('offline', onOffline);
+    refresh();
+    return () => { alive = false; window.removeEventListener('online', onOnline); window.removeEventListener('offline', onOffline); };
+  }, []);
+
+  const syncNow = async () => {
+    if (!navigator.onLine) return;
+    const r = await flushQueue();
+    setPending(r.remaining);
+  };
 
   if (!me) return <p className="p-6">Loading…</p>;
   const tabs = TABS.filter((t) => !('owner' in t) || me.role === 'owner');
@@ -104,9 +156,11 @@ export default function AdminApp() {
           </div>
         </header>
         <main className={`mx-auto px-4 pb-28 pt-6 sm:px-7 sm:pt-8 lg:px-9 lg:pb-10 ${tab === 'dashboard' ? 'max-w-[1440px]' : 'max-w-4xl'}`}>
+          <SyncBanner online={online} pending={pending} onSync={syncNow} />
           {tab === 'scan' && <ScanView role={me.role} />}
           {tab === 'products' && <ProductsView role={me.role} />}
           {tab === 'dashboard' && <DashboardView role={me.role} onNavigate={setTab} />}
+          {tab === 'activity' && <ActivityView role={me.role} />}
           {tab === 'stocktake' && <StocktakeView role={me.role} />}
           {tab === 'manage' && me.role === 'owner' && <ManageView meId={me.id} />}
         </main>

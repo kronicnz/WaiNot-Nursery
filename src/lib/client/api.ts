@@ -53,6 +53,28 @@ export interface Category {
   id: string;
   name: string;
 }
+export interface Location {
+  id: string;
+  name: string;
+  kind: 'bench' | 'tunnel' | 'shadehouse' | 'shop' | 'other';
+  active: boolean;
+}
+export interface Movement {
+  id: string;
+  product_id: string;
+  batch_id: string | null;
+  location_id: string | null;
+  delta: number;
+  reason: 'receive' | 'sale' | 'adjust' | 'transfer' | 'loss' | 'stocktake';
+  note: string | null;
+  user_id: string;
+  client_op_id: string;
+  created_at: string;
+  products: { name: string; sku: string } | null;
+  batches: { batch_code: string } | null;
+  locations: { name: string; kind: string } | null;
+  profiles: { name: string } | null;
+}
 export interface Me {
   id: string;
   email: string;

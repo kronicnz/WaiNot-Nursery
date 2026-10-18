@@ -61,6 +61,23 @@ export const stocktakeLineSchema = z.object({
   counted_qty: z.number().int().min(0).max(1_000_000),
 });
 
+export const locationSchema = z.object({
+  name: text(80),
+  kind: z.enum(['bench', 'tunnel', 'shadehouse', 'shop', 'other']).default('bench'),
+  active: z.boolean().default(true),
+});
+export const locationPatchSchema = locationSchema.partial();
+
+export const transferSchema = z.object({
+  product_id: uuid,
+  batch_id: uuid.nullable().optional(),
+  from_location_id: uuid,
+  to_location_id: uuid,
+  qty: z.number().int().min(1).max(1_000_000),
+  note: z.string().trim().max(500).optional().nullable(),
+  client_op_id: z.string().min(8).max(80),
+}).refine((d) => d.from_location_id !== d.to_location_id, { message: 'Locations must differ', path: ['to_location_id'] });
+
 export const userInviteSchema = z.object({
   email,
   name: text(100),
