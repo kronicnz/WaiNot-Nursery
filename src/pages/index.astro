@@ -115,7 +115,7 @@ const priceFormat = new Intl.NumberFormat('en-NZ', { style: 'currency', currency
 										<div class="plant-details">
 											<h4>{plant.name}</h4>
 											<p>{plant.description}</p>
-											{plant.price !== null && <p class="plant-price">{priceFormat.format(plant.price)} <span>incl. GST per plant</span></p>}
+											{plant.price !== null && <p class="plant-price">{plant.from_price ? 'From ' : ''}{priceFormat.format(plant.price)} <span>incl. GST per plant{plant.price_label ? ` · ${plant.price_label}` : ''}</span></p>}
 										</div>
 									</article>
 								))}
@@ -131,6 +131,7 @@ const priceFormat = new Intl.NumberFormat('en-NZ', { style: 'currency', currency
 			</div>
 			<div class="range-footer">
 				<p>Looking for something specific, or planning a larger order?</p>
+				<a class="button button-outline" href="/price-list">Current price list <span aria-hidden="true">↗</span></a>
 				<a class="button button-outline" href={`mailto:${nurseryMeta.email}?subject=Native%20plant%20enquiry`}>Talk with the nursery <span aria-hidden="true">↗</span></a>
 				<a class="guide-link" href={nurseryMeta.plantSelectionGuide} target="_blank" rel="noopener noreferrer">Open the plant selection guide <span aria-hidden="true">↗</span></a>
 			</div>

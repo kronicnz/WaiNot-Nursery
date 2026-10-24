@@ -18,6 +18,7 @@ export default function ScanView({ role }: { role: 'owner' | 'staff' }) {
   const [msg, setMsg] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null);
   const [pending, setPending] = useState(0);
   const [busy, setBusy] = useState(false);
+  const [quote, setQuote] = useState<{ unit_price: number | null; line_total: number | null; discount_pct: number } | null>(null);
   const online = useRef(navigator.onLine);
 
   // Transfer-specific state
@@ -85,7 +86,24 @@ export default function ScanView({ role }: { role: 'owner' | 'staff' }) {
     setQty(1);
     setBatchId(found.scanned_batch_id ?? '');
     setNote('');
+    setQuote(null);
   }, []);
+
+  useEffect(() => {
+    if (!product || reason !== 'sale') { setQuote(null); return; }
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await api<{ unit_price: number | null; line_total: number | null; discount_pct: number }>(
+          `/api/pricing/quote?product_id=${encodeURIComponent(product.id)}&batch_id=${encodeURIComponent(batchId || '')}&qty=${qty}`
+        );
+        if (!cancelled) setQuote(res);
+      } catch {
+        if (!cancelled) setQuote(null);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [product, batchId, qty, reason]);
 
   const here = product?.stock_levels?.reduce((n, s) => n + s.qty, 0) ?? 0;
 
@@ -99,6 +117,7 @@ export default function ScanView({ role }: { role: 'owner' | 'staff' }) {
       delta: mode === 'in' ? qty : -qty,
       reason: (mode === 'in' ? 'receive' : reason) as 'receive' | 'sale' | 'loss',
       note: note || null,
+      ...(reason === 'sale' ? { unit_price: quote?.unit_price ?? null, line_total: quote?.line_total ?? null } : {}),
     };
     try {
       await api('/api/stock/movements', { method: 'POST', json: movement });
@@ -314,6 +333,16 @@ export default function ScanView({ role }: { role: 'owner' | 'staff' }) {
                 />
                 <Btn onClick={() => setQty((q) => Math.min(100000, q + 1))}>+</Btn>
               </div>
+              {reason === 'sale' && quote && (
+                <div className="flex items-center gap-3 text-sm">
+                  <span className="font-medium">Unit price:</span>
+                  <span className="font-semibold">{quote.unit_price == null ? '—' : new Intl.NumberFormat('en-NZ', { style: 'currency', currency: 'NZD' }).format(quote.unit_price)}</span>
+                  <span className="text-stone-500">·</span>
+                  <span className="font-medium">Line total:</span>
+                  <span className="font-semibold">{quote.line_total == null ? '—' : new Intl.NumberFormat('en-NZ', { style: 'currency', currency: 'NZD' }).format(quote.line_total)}</span>
+                  {quote.discount_pct > 0 && <span className="ml-2 text-xs text-stone-500">({quote.discount_pct}% tier)</span>}
+                </div>
+              )}
               <input className={inputCls} placeholder="Note (optional)" maxLength={500} value={note} onChange={(e) => setNote(e.target.value)} />
               <div className="grid grid-cols-2 gap-2">
                 <Btn onClick={() => setProduct(null)}>Cancel</Btn>

@@ -23,29 +23,41 @@ export const POST: APIRoute = async (ctx) => {
   const col = (r: string[], n: string) => (r[header.indexOf(n)] ?? '').trim();
 
   const sb = ctx.locals.supabase;
-  const { data: existing, error: exErr } = await sb.from('products').select('id, sku').limit(20000);
+  const { data: existing, error: exErr } = await sb.from('products').select('id, sku, pot_size_id').limit(20000);
   if (exErr) return dbError(exErr);
-  const bySku = new Map((existing ?? []).map((p) => [p.sku, p.id as string]));
+  const bySku = new Map((existing ?? []).map((p) => [p.sku, { id: p.id as string, pot_size_id: p.pot_size_id }]));
   const { data: cats, error: cErr } = await sb.from('categories').select('id, name');
   if (cErr) return dbError(cErr);
   const catByName = new Map((cats ?? []).map((c) => [c.name.toLowerCase(), c.id as string]));
 
+  // Resolve pot size name/code → id.
+  const { data: sizes, error: sErr } = await sb.from('pot_sizes').select('id, code, name').eq('active', true);
+  if (sErr) return dbError(sErr);
+  const sizeByCode = new Map((sizes ?? []).map((s: { id: string; code: string; name: string }) => [s.code.toLowerCase(), s.id]));
+  const sizeByName = new Map((sizes ?? []).map((s: { id: string; code: string; name: string }) => [s.name.toLowerCase(), s.id]));
+  const resolveSize = (v: string) => {
+    if (!v) return null;
+    return sizeByCode.get(v.toLowerCase()) ?? sizeByName.get(v.toLowerCase()) ?? null;
+  };
+
   const errors: { row: number; message: string }[] = [];
-  const valid: { fields: z.infer<typeof productSchema>; category: string; barcodes: string[] }[] = [];
+  const valid: { fields: z.infer<typeof productSchema>; category: string; barcodes: string[]; pot_size_id: string | null; price: number | null }[] = [];
   const seen = new Set<string>();
 
   rows.slice(1).forEach((r, i) => {
     const price = col(r, 'price');
     const reorder = col(r, 'reorder_level');
     const category = col(r, 'category');
+    const potSize = col(r, 'pot_size');
+    const potSizeId = resolveSize(potSize);
+    if (potSize !== '' && !potSizeId) return void errors.push({ row: i + 2, message: `pot_size: unknown size "${potSize}"` });
     if (!category) return void errors.push({ row: i + 2, message: 'category: required' });
     const parsed = productSchema.safeParse({
       sku: col(r, 'sku'),
       name: col(r, 'name'),
       category_id: catByName.get(category.toLowerCase()) ?? '00000000-0000-0000-0000-000000000000',
+      pot_size_id: potSizeId ?? undefined,
       botanical_name: col(r, 'botanical_name'),
-      pot_size: col(r, 'pot_size'),
-      price: price === '' ? null : Number(price),
       reorder_level: reorder === '' ? 20 : Number(reorder),
       ...(header.includes('public_description') ? { public_description: col(r, 'public_description') } : {}),
       ...(header.includes('public_image_url') ? { public_image_url: col(r, 'public_image_url') || null } : {}),
@@ -58,6 +70,8 @@ export const POST: APIRoute = async (ctx) => {
       fields: parsed.data,
       category,
       barcodes: col(r, 'barcode').split(';').map((b) => b.trim()).filter(Boolean),
+      pot_size_id: potSizeId,
+      price: price === '' ? null : Number(price),
     });
   });
 
@@ -79,15 +93,22 @@ export const POST: APIRoute = async (ctx) => {
     }
     const { barcodes: _b, ...fields } = v.fields;
     const row = { ...fields, category_id };
+    // Use the resolved pot_size_id as the product's default size.
+    if (v.pot_size_id != null) row.pot_size_id = v.pot_size_id;
     const id = bySku.get(v.fields.sku);
-    let productId = id;
+    let productId = id ? id.id : null;
     if (id) {
-      const { error } = await sb.from('products').update(row).eq('id', id);
+      const { error } = await sb.from('products').update(row).eq('id', id.id);
       if (error) return dbError(error);
     } else {
       const { data, error } = await sb.from('products').insert(row).select('id').single();
       if (error) return dbError(error);
       productId = data.id;
+    }
+    // Write the default-size price row from the legacy price column.
+    if (productId && v.price != null && Number.isFinite(v.price) && v.pot_size_id) {
+      await sb.from('product_prices')
+        .upsert({ product_id: productId, pot_size_id: v.pot_size_id, unit_price: v.price, active: true }, { onConflict: 'product_id,pot_size_id' });
     }
     if (v.barcodes.length) {
       const { error } = await sb

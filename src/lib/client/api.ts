@@ -33,6 +33,7 @@ export interface Product {
   name: string;
   botanical_name: string | null;
   category_id: string;
+  pot_size_id: string | null;
   pot_size: string | null;
   price: number | null;
   reorder_level: number;
@@ -46,7 +47,7 @@ export interface Product {
   total_qty?: number;
   product_barcodes?: { barcode: string; type: string }[];
   stock_levels?: { batch_id: string | null; qty: number }[];
-  batches?: { id: string; batch_code: string; potted_on: string | null; barcode: string; archived_at: string | null; qty?: number }[];
+  batches?: { id: string; batch_code: string; potted_on: string | null; barcode: string; archived_at: string | null; qty?: number; pot_size_id: string | null; grade_id: string | null; price_override: number | null }[];
   scanned_batch_id?: string;
 }
 export interface Category {

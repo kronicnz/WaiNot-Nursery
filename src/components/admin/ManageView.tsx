@@ -4,6 +4,9 @@ import QRCode from 'qrcode';
 import { api, type Category, type Product, type Location } from '../../lib/client/api';
 import { Btn, Msg, inputCls, Modal } from './ui';
 import { listTransferQueue, discardQueuedTransfer, flushTransferQueue, retryQueuedTransfer, enqueueTransfer, clearTransferQueue } from '../../lib/client/offline';
+import PotSizesEditor from './pricing/PotSizesEditor';
+import GradesEditor from './pricing/GradesEditor';
+import PriceBookTable from './pricing/PriceBookTable';
 
 function Label({ p }: { p: Product }) {
   const qr = useRef<HTMLCanvasElement>(null);
@@ -433,11 +436,46 @@ function QueuedTransfers() {
   );
 }
 
+function PriceHistory() {
+  const [items, setItems] = useState<any[]>([]);
+  const [err, setErr] = useState('');
+  const load = useCallback(() => api<any[]>('/api/movements?reason=sale&limit=50').then(setItems).catch((e) => setErr(e.message)), []);
+  useEffect(() => { load(); }, [load]);
+  return (
+    <section className="space-y-2">
+      <h3 className="font-semibold">Recent price history (sales)</h3>
+      <p className="text-sm text-stone-600">Sale movements with snapshotted unit price and line total.</p>
+      {err && <p className="text-sm text-red-700">{err}</p>}
+      {items.length === 0 && <p className="text-xs text-stone-500">No sale history yet.</p>}
+      <div className="max-h-48 overflow-auto rounded border bg-white p-2">
+        <table className="w-full text-xs">
+          <thead><tr className="border-b border-stone-200"><th className="p-1 text-left">Product</th><th className="p-1 text-right">Qty</th><th className="p-1 text-right">Unit price</th><th className="p-1 text-right">Line total</th><th className="p-1 text-left">At</th></tr></thead>
+          <tbody>
+            {items.map((m) => (
+              <tr key={m.id} className="border-b border-stone-100">
+                <td className="p-1">{m.products?.name ?? m.product_id}</td>
+                <td className="p-1 text-right">{Math.abs(m.delta)}</td>
+                <td className="p-1 text-right">{m.unit_price == null ? '—' : new Intl.NumberFormat('en-NZ', { style: 'currency', currency: 'NZD' }).format(m.unit_price)}</td>
+                <td className="p-1 text-right">{m.line_total == null ? '—' : new Intl.NumberFormat('en-NZ', { style: 'currency', currency: 'NZD' }).format(m.line_total)}</td>
+                <td className="p-1 text-stone-500">{new Date(m.created_at).toLocaleString()}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  );
+}
+
 export default function ManageView({ meId, focusSection, onFocused }: { meId: string; focusSection?: string | null; onFocused?: () => void }) {
   return (
     <div className="space-y-6">
       <Simple<Category> title="Categories" path="/api/categories" />
       <Locations focus={focusSection === 'locations'} onFocused={onFocused} />
+      <PotSizesEditor focus={focusSection === 'pot-sizes'} onFocused={onFocused} />
+      <GradesEditor focus={focusSection === 'grades'} onFocused={onFocused} />
+      <PriceBookTable />
+      <PriceHistory />
           <QueuedTransfers />
           <CsvTools />
           <Labels />

@@ -2,19 +2,19 @@ import { useCallback, useEffect, useState } from 'react';
 import { api, type Category, type Product } from '../../lib/client/api';
 import Scanner from './Scanner';
 import { Btn, Field, Msg, Section, inputCls } from './ui';
+import ProductPricingPanel from './pricing/ProductPricingPanel';
 
-const blank = { sku: '', name: '', botanical_name: '', pot_size: '', price: '', reorder_level: '20', public_description: '', public_image_url: '', public_image_alt: '', notes: '', category_id: '' };
+const blank = { sku: '', name: '', botanical_name: '', pot_size_id: '', reorder_level: '20', public_description: '', public_image_url: '', public_image_alt: '', notes: '', category_id: '' };
 const priceFormat = new Intl.NumberFormat('en-NZ', { style: 'currency', currency: 'NZD' });
 
-function ProductForm({ product, categories, onDone }: { product: Product | null; categories: Category[]; onDone: () => void }) {
+function ProductForm({ product, categories, potSizes, grades, onDone }: { product: Product | null; categories: Category[]; potSizes: { id: string; name: string }[]; grades: { id: string; name: string; adjustment_pct: number }[]; onDone: () => void }) {
   const [f, setF] = useState(() =>
     product
       ? {
           sku: product.sku,
           name: product.name,
           botanical_name: product.botanical_name ?? '',
-          pot_size: product.pot_size ?? '',
-          price: product.price?.toString() ?? '',
+          pot_size_id: product.pot_size_id ?? '',
           reorder_level: String(product.reorder_level),
           public_description: product.public_description ?? '',
           public_image_url: product.public_image_url ?? '',
@@ -37,6 +37,7 @@ function ProductForm({ product, categories, onDone }: { product: Product | null;
   const [stockSaving, setStockSaving] = useState(false);
   const [stockMsg, setStockMsg] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null);
   const [err, setErr] = useState('');
+  const [batchEdits, setBatchEdits] = useState<Record<string, { pot_size_id: string; grade_id: string; price_override: string }>>({});
   const set = (k: keyof typeof blank) => (e: { target: { value: string } }) => setF({ ...f, [k]: e.target.value });
 
   useEffect(() => {
@@ -49,6 +50,15 @@ function ProductForm({ product, categories, onDone }: { product: Product | null;
       .then(([productBatches, details]) => {
         setBatches(productBatches);
         setStockLevels(details.stock_levels ?? []);
+        const next: Record<string, { pot_size_id: string; grade_id: string; price_override: string }> = {};
+        for (const b of productBatches ?? []) {
+          next[b.id] = {
+            pot_size_id: b.pot_size_id ?? '',
+            grade_id: b.grade_id ?? '',
+            price_override: b.price_override == null ? '' : String(b.price_override),
+          };
+        }
+        setBatchEdits(next);
         setStockBatchId((current) =>
           current === '' || productBatches.some((batch) => batch.id === current) ? current : '',
         );
@@ -102,8 +112,7 @@ function ProductForm({ product, categories, onDone }: { product: Product | null;
       sku: f.sku,
       name: f.name,
       botanical_name: f.botanical_name || null,
-      pot_size: f.pot_size || null,
-      price: f.price === '' ? null : Number(f.price),
+      pot_size_id: f.pot_size_id || null,
       reorder_level: Number(f.reorder_level) || 0,
       public_description: f.public_description,
       public_image_url: f.public_image_url || null,
@@ -148,6 +157,25 @@ function ProductForm({ product, categories, onDone }: { product: Product | null;
     }
   };
 
+  const saveBatchEdit = async (batchId: string) => {
+    const e = batchEdits[batchId];
+    if (!e) return;
+    try {
+      await api(`/api/batches/${batchId}`, {
+        method: 'PATCH',
+        json: {
+          pot_size_id: e.pot_size_id || null,
+          grade_id: e.grade_id || null,
+          price_override: e.price_override === '' ? null : Number(e.price_override),
+        },
+      });
+      const b = batches.find((x) => x.id === batchId);
+      if (b) setBatchEdits((prev) => ({ ...prev, [batchId]: { pot_size_id: b.pot_size_id ?? '', grade_id: b.grade_id ?? '', price_override: b.price_override == null ? '' : String(b.price_override) } }));
+    } catch (err) {
+      setErr((err as Error).message);
+    }
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-3">
@@ -159,8 +187,12 @@ function ProductForm({ product, categories, onDone }: { product: Product | null;
       <Field label="Name"><input className={inputCls} value={f.name} onChange={set('name')} maxLength={200} /></Field>
       <Field label="Botanical name"><input className={inputCls} value={f.botanical_name} onChange={set('botanical_name')} /></Field>
       <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-        <Field label="Pot size"><input className={inputCls} value={f.pot_size} onChange={set('pot_size')} /></Field>
-        <Field label="Price"><input className={inputCls} inputMode="decimal" value={f.price} onChange={set('price')} /></Field>
+        <Field label="Default pot size">
+          <select className={inputCls} value={f.pot_size_id} onChange={set('pot_size_id')}>
+            <option value="">Choose default size</option>
+            {potSizes.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+          </select>
+        </Field>
         <Field label="Low stock"><input className={inputCls} inputMode="numeric" value={f.reorder_level} onChange={set('reorder_level')} /><span className="mt-1 block text-xs text-stone-500">Show a low-stock alert at or below this quantity.</span></Field>
         <Field label="Category">
           <select className={inputCls} value={f.category_id} onChange={set('category_id')} required>
@@ -198,6 +230,9 @@ function ProductForm({ product, categories, onDone }: { product: Product | null;
 
       {product && (
         <>
+          <Section title="Pricing" hint="Price book rows per pot size, plus quantity breaks for this product.">
+            <ProductPricingPanel productId={product.id} potSizes={potSizes} />
+          </Section>
           <Section title="On-hand stock" hint="Set the counted quantity for one plant batch. Counts are recorded as audited adjustments.">
             {stockLoading ? (
               <p className="text-sm text-stone-500">Loading stock levels…</p>
@@ -247,6 +282,29 @@ function ProductForm({ product, categories, onDone }: { product: Product | null;
                   <span className={b.archived_at ? 'text-stone-500' : 'text-green-800'}>{b.archived_at ? 'Archived' : 'Active · ' + (b.qty ?? stockLevels.filter((level) => level.batch_id === b.id).reduce((total, level) => total + level.qty, 0)) + ' on hand'}</span>
                 </div>
                 <code className="mt-1 block break-all text-stone-600">{b.barcode}</code>
+                {!b.archived_at && (
+                  <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-4 sm:items-end">
+                    <label className="flex flex-col gap-1">
+                      <span className="text-[10px] text-stone-500">Pot size</span>
+                      <select className={inputCls} value={batchEdits[b.id]?.pot_size_id ?? ''} onChange={(e) => setBatchEdits((prev) => ({ ...prev, [b.id]: { ...prev[b.id], pot_size_id: e.target.value } }))}>
+                        <option value="">Inherit default</option>
+                        {potSizes.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+                      </select>
+                    </label>
+                    <label className="flex flex-col gap-1">
+                      <span className="text-[10px] text-stone-500">Grade</span>
+                      <select className={inputCls} value={batchEdits[b.id]?.grade_id ?? ''} onChange={(e) => setBatchEdits((prev) => ({ ...prev, [b.id]: { ...prev[b.id], grade_id: e.target.value } }))}>
+                        <option value="">Standard</option>
+                        {grades.map((g) => <option key={g.id} value={g.id}>{g.name} · {g.adjustment_pct >= 0 ? '+' : ''}{g.adjustment_pct}%</option>)}
+                      </select>
+                    </label>
+                    <label className="flex flex-col gap-1">
+                      <span className="text-[10px] text-stone-500">Clearance override</span>
+                      <input className={inputCls} type="number" inputMode="decimal" step="0.01" min={0} value={batchEdits[b.id]?.price_override ?? ''} onChange={(e) => setBatchEdits((prev) => ({ ...prev, [b.id]: { ...prev[b.id], price_override: e.target.value } }))} />
+                    </label>
+                    <Btn onClick={() => saveBatchEdit(b.id)}>Save</Btn>
+                  </div>
+                )}
                 {!b.archived_at && (b.qty ?? stockLevels.filter((level) => level.batch_id === b.id).reduce((total, level) => total + level.qty, 0)) === 0 && (
                   <button
                     className="mt-2 text-sm text-red-700 underline"
@@ -292,6 +350,8 @@ function ProductForm({ product, categories, onDone }: { product: Product | null;
 export default function ProductsView({ role }: { role: 'owner' | 'staff' }) {
   const [items, setItems] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [potSizes, setPotSizes] = useState<{ id: string; name: string }[]>([]);
+  const [grades, setGrades] = useState<{ id: string; name: string; adjustment_pct: number }[]>([]);
   const [q, setQ] = useState('');
   const [editing, setEditing] = useState<Product | 'new' | null>(null);
   const [err, setErr] = useState('');
@@ -304,7 +364,14 @@ export default function ProductsView({ role }: { role: 'owner' | 'staff' }) {
       setErr('');
       const r = await api<{ items: Product[] }>(`/api/products?limit=100&q=${encodeURIComponent(q)}`);
       setItems(r.items);
-      setCategories(await api<Category[]>('/api/categories'));
+      const [cats, sizes, gs] = await Promise.all([
+        api<Category[]>('/api/categories'),
+        api<{ id: string; name: string }[]>('/api/pricing/pot-sizes'),
+        api<{ id: string; name: string; adjustment_pct: number }[]>('/api/pricing/grades'),
+      ]);
+      setCategories(cats);
+      setPotSizes(sizes);
+      setGrades(gs);
     } catch (e) {
       setErr((e as Error).message);
     } finally {
@@ -317,7 +384,7 @@ export default function ProductsView({ role }: { role: 'owner' | 'staff' }) {
   }, [load]);
 
   if (editing && role === 'owner') {
-    return <ProductForm product={editing === 'new' ? null : editing} categories={categories} onDone={() => { setEditing(null); load(); }} />;
+    return <ProductForm product={editing === 'new' ? null : editing} categories={categories} potSizes={potSizes} grades={grades} onDone={() => { setEditing(null); load(); }} />;
   }
 
   const isLow = (p: Product) => p.reorder_level > 0 && (p.total_qty ?? 0) <= p.reorder_level;

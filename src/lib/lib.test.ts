@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { barcodeCandidates } from './barcode';
 import { parseCsv, toCsv } from './csv';
-import { movementSchema, productSchema, stockCountSchema } from './validation';
+import { movementSchema, priceRowSchema, productSchema, stockCountSchema } from './validation';
 
 describe('csv', () => {
   it('round-trips quotes, commas and newlines', () => {
@@ -33,7 +33,8 @@ describe('validation', () => {
     expect(movementSchema.safeParse({ ...base, delta: -1, reason: 'sale' }).success).toBe(true);
   });
   it('rejects negative price', () => {
-    expect(productSchema.safeParse({ sku: 'A', name: 'B', price: -1 }).success).toBe(false);
+    expect(priceRowSchema.safeParse({ product_id: crypto.randomUUID(), pot_size_id: crypto.randomUUID(), unit_price: -1 }).success).toBe(false);
+    expect(priceRowSchema.safeParse({ product_id: crypto.randomUUID(), pot_size_id: crypto.randomUUID(), unit_price: 0 }).success).toBe(true);
   });
   it('requires a category for a product', () => {
     expect(productSchema.safeParse({ sku: 'A', name: 'B' }).success).toBe(false);

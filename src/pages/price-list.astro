@@ -1,0 +1,88 @@
+---
+import Layout from '../layouts/Layout.astro';
+import { getPublicPriceList } from '../lib/publicCatalog';
+
+export const prerender = false;
+
+const rows = await getPublicPriceList();
+const priceFormat = new Intl.NumberFormat('en-NZ', { style: 'currency', currency: 'NZD' });
+
+// Group by category, preserving category sort order.
+const byCategory = new Map<string, { title: string; sort: number; items: typeof rows }>();
+for (const row of rows) {
+  let cat = byCategory.get(row.category);
+  if (!cat) {
+    cat = { title: row.category, sort: row.category_sort_order, items: [] };
+    byCategory.set(row.category, cat);
+  }
+  cat.items.push(row);
+}
+const categories = Array.from(byCategory.values()).sort((a, b) => a.sort - b.sort || a.title.localeCompare(b.title));
+
+// Within a category: sort by plant sort_order, then pot size, then min qty.
+for (const cat of categories) {
+  cat.items.sort((a, b) => a.sort_order - b.sort_order || a.pot_size.localeCompare(b.pot_size) || a.min_qty - b.min_qty);
+}
+---
+
+<Layout title="Price list | WaiNot Native Nursery">
+	<div class="nursery-home">
+		<section class="price-list-section" aria-labelledby="price-list-title" style="padding: clamp(48px, 6vw, 80px) var(--gutter);">
+			<div class="section-heading">
+				<h2 id="price-list-title">Current price list</h2>
+				<p>All prices are GST-inclusive per plant. Volume discounts apply at the stated quantities. For project supply and freight, please <a href="#contact">enquire</a>.</p>
+			</div>
+
+			{categories.map((cat) => (
+				<section class="price-category" style="margin-bottom: 48px;">
+					<h3 style="margin: 0 0 12px; font-family: 'Playfair Display', Georgia, serif; font-size: 1.5rem; color: var(--ink);">{cat.title}</h3>
+					<div style="overflow-x: auto; border: 1px solid var(--line); border-radius: 6px; background: #fff;">
+						<table style="width: 100%; border-collapse: collapse; font-size: 0.9rem;">
+							<thead>
+								<tr style="text-align: left; background: var(--sage); color: #24372a;">
+									<th style="padding: 10px 14px; border-bottom: 1px solid var(--line); font-weight: 600;">Plant</th>
+									<th style="padding: 10px 14px; border-bottom: 1px solid var(--line); font-weight: 600; text-align: right;">Size</th>
+									<th style="padding: 10px 14px; border-bottom: 1px solid var(--line); font-weight: 600; text-align: right;">Price (1 plant)</th>
+									<th style="padding: 10px 14px; border-bottom: 1px solid var(--line); font-weight: 600; text-align: right;">Volume tiers</th>
+								</tr>
+							</thead>
+							<tbody>
+								{cat.items.map((row) => (
+									<tr style="border-bottom: 1px solid var(--line);">
+										<td style="padding: 10px 14px;">{row.name}</td>
+										<td style="padding: 10px 14px; text-align: right; font-variant-numeric: tabular-nums;">{row.pot_size}</td>
+										<td style="padding: 10px 14px; text-align: right; font-weight: 600; color: #24372a;">
+											{row.unit_price == null ? 'Price unset' : priceFormat.format(row.unit_price)}
+										</td>
+										<td style="padding: 10px 14px; text-align: right; color: #69766d; font-size: 0.85rem;">
+											{row.unit_price == null ? '—' : row.min_qty === 1 && row.discount_pct === 0 ? 'Standard price' : `${priceFormat.format(row.unit_price)} at ${row.min_qty}+ (${row.discount_pct}% off)`}
+										</td>
+									</tr>
+								))}
+							</tbody>
+						</table>
+					</div>
+				</section>
+			))}
+
+			{categories.length === 0 && (
+				<p style="color: #69766d;">No priced plants available yet.</p>
+			)}
+		</section>
+	</div>
+
+	<style is:global>
+		:global(:root) {
+			--ink: #1d3229;
+			--sage: #dce4d6;
+			--line: rgba(29, 50, 41, 0.14);
+			--gutter: 20px;
+		}
+		:global(body) { font-family: 'Inter', Arial, sans-serif; color: var(--ink); }
+		.price-list-section { max-width: 1100px; margin: 0 auto; }
+		.section-heading h2 { margin: 0 0 8px; font-family: 'Playfair Display', Georgia, serif; font-size: 2rem; color: var(--ink); }
+		.section-heading p { margin: 0 0 24px; color: #69766d; }
+		.section-heading p a { color: #294536; text-decoration: underline; }
+		.price-category h3 { border-bottom: 2px solid #244437; padding-bottom: 6px; display: inline-block; }
+	</style>
+</Layout>

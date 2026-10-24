@@ -13,8 +13,7 @@ export const productSchema = z.object({
   name: text(200),
   botanical_name: optText(200),
   category_id: uuid,
-  pot_size: optText(40),
-  price: z.number().min(0).max(100000).nullable().optional(),
+  pot_size_id: uuid.nullable().optional(),
   reorder_level: z.number().int().min(0).max(1_000_000).default(20),
   public_description: z.string().trim().max(3000).optional(),
   public_image_url: z.string().trim().max(2000).pipe(z.url()).nullable().optional(),
@@ -36,6 +35,8 @@ export const movementSchema = z.object({
   reason: z.enum(['receive', 'sale', 'adjust', 'loss']),
   note: z.string().trim().max(500).optional().nullable(),
   client_op_id: z.string().min(8).max(80),
+  unit_price: z.number().min(0).max(100000).optional().nullable(),
+  line_total: z.number().min(0).max(100000000).optional().nullable(),
 });
 export const movementBatchSchema = z.object({ movements: z.array(movementSchema).min(1).max(200) });
 
@@ -51,8 +52,45 @@ export const batchSchema = z.object({
   product_id: uuid,
   batch_code: text(64),
   potted_on: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
+  pot_size_id: uuid.nullable().optional(),
+  grade_id: uuid.nullable().optional(),
+  price_override: z.number().min(0).max(100000).nullable().optional(),
   notes: optText(500),
 });
+
+export const potSizeSchema = z.object({
+  code: text(40),
+  name: text(80),
+  diameter_mm: z.number().int().min(1).optional().nullable(),
+  volume_l: z.number().min(0).max(9999.99).optional().nullable(),
+  sort_order: z.number().int().min(0).default(0),
+  active: z.boolean().default(true),
+});
+export const potSizePatchSchema = potSizeSchema.partial();
+
+export const gradeSchema = z.object({
+  code: text(40),
+  name: text(80),
+  adjustment_pct: z.number().min(-100).max(500).default(0),
+  sort_order: z.number().int().min(0).default(0),
+  active: z.boolean().default(true),
+});
+export const gradePatchSchema = gradeSchema.partial();
+
+export const priceRowSchema = z.object({
+  product_id: uuid,
+  pot_size_id: uuid,
+  unit_price: z.number().min(0).max(100000),
+  active: z.boolean().default(true),
+});
+export const priceRowPatchSchema = priceRowSchema.partial().omit({ product_id: true, pot_size_id: true });
+
+export const priceBreakSchema = z.object({
+  product_id: uuid,
+  min_qty: z.number().int().min(1).max(100000),
+  discount_pct: z.number().min(0).max(99.99),
+});
+export const priceBreakPatchSchema = priceBreakSchema.partial().omit({ product_id: true, min_qty: true });
 
 export const stocktakeSchema = z.object({});
 export const stocktakeLineSchema = z.object({
