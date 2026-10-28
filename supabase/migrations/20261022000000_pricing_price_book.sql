@@ -75,7 +75,7 @@ create table public.price_history (
   changed_at timestamptz not null default now()
 );
 
-create function public.touch_updated_at() returns trigger language plpgsql as $$
+create or replace function public.touch_updated_at() returns trigger language plpgsql as $$
 begin new.updated_at = now(); return new; end $$;
 create trigger product_prices_touch before update on public.product_prices
   for each row execute function public.touch_updated_at();
@@ -226,7 +226,8 @@ end $$;
 create policy price_history_read on public.price_history for select using (is_active_user());
 
 -- ───────── Public views (recreate) ─────────
-create or replace view public.public_catalog_plants
+drop view if exists public.public_catalog_plants;
+create view public.public_catalog_plants
 with (security_barrier = true) as
 select
   products.sku as id,
@@ -283,6 +284,9 @@ grant select on public.public_catalog_plants, public.public_catalog_price_list t
 -- ───────── RPC update: apply_stock_movement ─────────
 -- Drop and recreate to add p_unit_price / p_line_total params (avoid overload
 -- ambiguity). Callers using the existing 7-arg count still work via defaults.
+-- Drop all existing overloads before recreating with new params.
+drop function if exists public.apply_stock_movement(uuid, uuid, integer, text, text, text);
+drop function if exists public.apply_stock_movement(uuid, uuid, integer, text, text, text, uuid);
 drop function if exists public.apply_stock_movement(uuid, uuid, uuid, integer, text, text, text);
 
 create function public.apply_stock_movement(

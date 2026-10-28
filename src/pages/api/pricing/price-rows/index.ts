@@ -10,7 +10,7 @@ const querySchema = z.object({ product_id: z.uuid().optional() });
 export const GET: APIRoute = async ({ url, locals }) => {
   const q = parseQuery(url.searchParams, querySchema);
   if ('error' in q) return q.error;
-  let query = locals.supabase.from('product_prices').select('*, pot_sizes(name)').order('pot_sizes(sort_order)');
+  let query = locals.supabase.from('product_prices').select('*, pot_sizes(name)').order('unit_price');
   if (q.data.product_id) query = query.eq('product_id', q.data.product_id);
   const { data, error } = await query;
   return error ? dbError(error) : json(data);
