@@ -10,6 +10,13 @@ export interface PublicPlantCategory {
   sort_order: number;
 }
 
+export interface PublicPlantPrice {
+  pot_size: string;
+  pot_size_id: string;
+  price: number | null;
+  sort_order: number;
+}
+
 export interface PublicPlant {
   id: string;
   name: string;
@@ -19,10 +26,7 @@ export interface PublicPlant {
   image_alt: string;
   category_sort_order: number;
   sort_order: number;
-  price: number | null;
-  price_label: string | null;
-  min_price: number | null;
-  from_price: boolean;
+  prices?: PublicPlantPrice[] | null;
   low_availability: boolean;
 }
 
@@ -54,9 +58,16 @@ export async function getPublicPlantCatalog() {
 
   const plants = (plantsResult.data ?? []).map((p: any) => ({
     ...p,
-    price: p.price == null ? null : Number(p.price),
-    min_price: p.price == null ? null : Number(p.price),
-    from_price: false,
+    prices: Array.isArray(p.prices)
+      ? p.prices
+          .map((pr: any) => ({
+            pot_size: pr.pot_size,
+            pot_size_id: pr.pot_size_id,
+            price: pr.price == null ? null : Number(pr.price),
+            sort_order: pr.sort_order ?? 0,
+          }))
+          .sort((a: PublicPlantPrice, b: PublicPlantPrice) => a.sort_order - b.sort_order || a.pot_size.localeCompare(b.pot_size))
+      : null,
   })) as PublicPlant[];
 
   return {

@@ -238,19 +238,20 @@ select
   products.public_image_alt as image_alt,
   categories.sort_order as category_sort_order,
   products.catalog_sort_order as sort_order,
-  pp.unit_price as price,
-  ps.name as price_label
+  jsonb_agg(
+    jsonb_build_object(
+      'pot_size', ps.name,
+      'pot_size_id', ps.id,
+      'price', pp.unit_price,
+      'sort_order', ps.sort_order
+    ) order by ps.sort_order, ps.name
+  ) filter (where pp.active and pp.unit_price is not null) as prices
 from public.products
 join public.categories on categories.id = products.category_id
-left join public.pot_sizes ps on ps.id = products.pot_size_id
-left join lateral (
-  select pp2.unit_price
-  from public.product_prices pp2
-  where pp2.product_id = products.id and pp2.pot_size_id = products.pot_size_id and pp2.active
-  order by pp2.updated_at desc
-  limit 1
-) pp on true
-where products.active and products.public_image_url is not null;
+join public.product_prices pp on pp.product_id = products.id and pp.active
+join public.pot_sizes ps on ps.id = pp.pot_size_id
+where products.active and products.public_image_url is not null
+group by products.sku, products.name, categories.name, products.public_description, products.public_image_url, products.public_image_alt, categories.sort_order, products.catalog_sort_order;
 
 create or replace view public.public_catalog_price_list
 with (security_barrier = true) as
