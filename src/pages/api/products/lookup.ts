@@ -22,7 +22,7 @@ export const GET: APIRoute = async ({ locals, url }) => {
   const q = parseQuery(url.searchParams, z.object({ barcode: z.string().trim().min(1).max(128) }));
   if ('error' in q) return q.error;
 
-  const select = '*, stock_levels(batch_id, qty), batches(id,batch_code,potted_on,barcode,archived_at), product_barcodes(barcode,type)';
+  const select = '*, stock_levels(batch_id, location_id, qty), batches(id,batch_code,potted_on,barcode,archived_at), product_barcodes(barcode,type)';
   const { data, error } = await locals.supabase
     .from('product_barcodes')
     .select(`barcode, products!inner(${select})`)

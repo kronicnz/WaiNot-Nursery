@@ -7,12 +7,14 @@ import ActivityView from './ActivityView';
 import ProductsView from './ProductsView';
 import ScanView from './ScanView';
 import StocktakeView from './StocktakeView';
+import NurseryView from './NurseryView';
 
 const TABS = [
   { id: 'dashboard', label: 'Dashboard', icon: 'home' },
   { id: 'activity', label: 'Activity', icon: 'clock' },
   { id: 'manage', label: 'Setup', icon: 'settings', owner: true },
   { id: 'products', label: 'Products', icon: 'plant' },
+  { id: 'nursery', label: 'Nursery', icon: 'plant' },
   { id: 'scan', label: 'Stock movement', icon: 'scan' },
   { id: 'stocktake', label: 'Stocktake', icon: 'count' },
 ] as const;
@@ -197,6 +199,7 @@ export default function AdminApp() {
           {tab !== 'dashboard' && <h1 className="mb-5 text-2xl font-semibold tracking-tight text-[#254432]">{pageTitle}</h1>}
           {tab === 'scan' && <ScanView role={me.role} />}
           {tab === 'products' && <ProductsView role={me.role} />}
+          {tab === 'nursery' && <NurseryView focusSection={focusSection} />}
           {tab === 'dashboard' && <DashboardView role={me.role} onNavigate={(target) => {
             // target can be 'manage' or 'manage:locations' etc
             const [t, section] = target.split(':');

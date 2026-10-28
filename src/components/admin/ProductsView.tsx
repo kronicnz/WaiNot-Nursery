@@ -108,12 +108,17 @@ function ProductForm({ product, categories, potSizes, grades, onDone }: { produc
 
   const save = async () => {
     setErr('');
+    const reorderLevel = Number(f.reorder_level);
+    if (!f.reorder_level.trim() || !Number.isInteger(reorderLevel) || reorderLevel < 0 || reorderLevel > 1_000_000) {
+      setErr('Low-stock threshold must be a whole number between 0 and 1,000,000.');
+      return;
+    }
     const payload = {
       sku: f.sku,
       name: f.name,
       botanical_name: f.botanical_name || null,
       pot_size_id: f.pot_size_id || null,
-      reorder_level: Number(f.reorder_level) || 0,
+      reorder_level: reorderLevel,
       public_description: f.public_description,
       public_image_url: f.public_image_url || null,
       public_image_alt: f.public_image_alt,
@@ -193,7 +198,7 @@ function ProductForm({ product, categories, potSizes, grades, onDone }: { produc
             {potSizes.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
           </select>
         </Field>
-        <Field label="Low stock"><input className={inputCls} inputMode="numeric" value={f.reorder_level} onChange={set('reorder_level')} /><span className="mt-1 block text-xs text-stone-500">Show a low-stock alert at or below this quantity.</span></Field>
+        <Field label="Low-stock threshold"><input className={inputCls} type="number" inputMode="numeric" min="0" max="1000000" step="1" value={f.reorder_level} onChange={set('reorder_level')} /><span className="mt-1 block text-xs text-stone-500">Alert when total product stock across all batches is at or below this number. Use 0 to disable low-stock alerts.</span></Field>
         <Field label="Category">
           <select className={inputCls} value={f.category_id} onChange={set('category_id')} required>
             <option value="">Choose a category</option>

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ApiError, api, isNetworkError, type Product } from '../../lib/client/api';
+import { ApiError, api, isNetworkError, type Location, type Product } from '../../lib/client/api';
 import { enqueue, enqueueTransfer, flushQueue, flushTransferQueue, listQueue, listTransferQueue, lookupOffline, refreshCatalog } from '../../lib/client/offline';
 import Scanner from './Scanner';
 import { Btn, Msg, inputCls } from './ui';
@@ -13,6 +13,7 @@ export default function ScanView({ role }: { role: 'owner' | 'staff' }) {
   const [qty, setQty] = useState(1);
   const [reason, setReason] = useState<'sale' | 'loss'>('sale');
   const [batchId, setBatchId] = useState('');
+  const [locationId, setLocationId] = useState('');
   const [note, setNote] = useState('');
   const [manual, setManual] = useState('');
   const [msg, setMsg] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null);
@@ -22,7 +23,7 @@ export default function ScanView({ role }: { role: 'owner' | 'staff' }) {
   const online = useRef(navigator.onLine);
 
   // Transfer-specific state
-  const [locations, setLocations] = useState<{ id: string; name: string; kind: string }[]>([]);
+  const [locations, setLocations] = useState<Location[]>([]);
   const [fromLocation, setFromLocation] = useState('');
   const [toLocation, setToLocation] = useState('');
   const [transferQty, setTransferQty] = useState(1);
@@ -54,7 +55,7 @@ export default function ScanView({ role }: { role: 'owner' | 'staff' }) {
 
       // load locations for transfer mode
       try {
-        const locs = await api<any[]>('/api/locations?active=1');
+        const locs = await api<Location[]>('/api/locations');
         setLocations(locs);
       } catch {
         setLocations([]);
@@ -85,17 +86,18 @@ export default function ScanView({ role }: { role: 'owner' | 'staff' }) {
     setProduct(found);
     setQty(1);
     setBatchId(found.scanned_batch_id ?? '');
+    setLocationId('');
     setNote('');
     setQuote(null);
   }, []);
 
   useEffect(() => {
-    if (!product || reason !== 'sale') { setQuote(null); return; }
+    if (!product || mode !== 'out' || reason !== 'sale') { setQuote(null); return; }
     let cancelled = false;
     (async () => {
       try {
         const res = await api<{ unit_price: number | null; line_total: number | null; discount_pct: number }>(
-          `/api/pricing/quote?product_id=${encodeURIComponent(product.id)}&batch_id=${encodeURIComponent(batchId || '')}&qty=${qty}`
+          `/api/pricing/quote?product_id=${encodeURIComponent(product.id)}${batchId ? `&batch_id=${encodeURIComponent(batchId)}` : ''}&qty=${qty}`
         );
         if (!cancelled) setQuote(res);
       } catch {
@@ -103,7 +105,7 @@ export default function ScanView({ role }: { role: 'owner' | 'staff' }) {
       }
     })();
     return () => { cancelled = true; };
-  }, [product, batchId, qty, reason]);
+  }, [product, batchId, qty, reason, mode]);
 
   const here = product?.stock_levels?.reduce((n, s) => n + s.qty, 0) ?? 0;
 
@@ -114,6 +116,7 @@ export default function ScanView({ role }: { role: 'owner' | 'staff' }) {
       client_op_id: crypto.randomUUID(),
       product_id: product.id,
       batch_id: batchId || null,
+      location_id: locationId || null,
       delta: mode === 'in' ? qty : -qty,
       reason: (mode === 'in' ? 'receive' : reason) as 'receive' | 'sale' | 'loss',
       note: note || null,
@@ -139,7 +142,7 @@ export default function ScanView({ role }: { role: 'owner' | 'staff' }) {
   const submitTransfer = async () => {
     setTransferMsg(null);
     if (!product) return setTransferMsg({ kind: 'err', text: 'Select a product first (scan or search).' });
-    if (!fromLocation || !toLocation || fromLocation === toLocation) return setTransferMsg({ kind: 'err', text: 'Choose two different locations.' });
+    if (fromLocation === toLocation) return setTransferMsg({ kind: 'err', text: 'Choose two different locations.' });
     if (!navigator.onLine) return setTransferMsg({ kind: 'err', text: 'Transfers require a network connection.' });
     const n = Number(transferQty);
     if (!Number.isInteger(n) || n <= 0) return setTransferMsg({ kind: 'err', text: 'Invalid quantity' });
@@ -150,14 +153,14 @@ export default function ScanView({ role }: { role: 'owner' | 'staff' }) {
         json: {
           product_id: product.id,
           batch_id: batchId || null,
-          from_location_id: fromLocation,
-          to_location_id: toLocation,
+          from_location_id: fromLocation || null,
+          to_location_id: toLocation || null,
           qty: n,
           note: note || null,
           client_op_id: crypto.randomUUID(),
         },
       });
-      setTransferMsg({ kind: 'ok', text: `Moved ${n} × ${product.name} from ${locations.find((l) => l.id === fromLocation)?.name ?? 'from'} to ${locations.find((l) => l.id === toLocation)?.name ?? 'to'}.` });
+      setTransferMsg({ kind: 'ok', text: `Moved ${n} × ${product.name} from ${locations.find((l) => l.id === fromLocation)?.name ?? 'unassigned'} to ${locations.find((l) => l.id === toLocation)?.name ?? 'unassigned'}.` });
       setProduct(null);
       setFromLocation('');
       setToLocation('');
@@ -174,7 +177,7 @@ export default function ScanView({ role }: { role: 'owner' | 'staff' }) {
   // enqueue transfer when offline
   const enqueueTransferLocal = async () => {
     if (!product) return setTransferMsg({ kind: 'err', text: 'Select a product first (scan or search).' });
-    if (!fromLocation || !toLocation || fromLocation === toLocation) return setTransferMsg({ kind: 'err', text: 'Choose two different locations.' });
+    if (fromLocation === toLocation) return setTransferMsg({ kind: 'err', text: 'Choose two different locations.' });
     const n = Number(transferQty);
     if (!Number.isInteger(n) || n <= 0) return setTransferMsg({ kind: 'err', text: 'Invalid quantity' });
     try {
@@ -182,8 +185,8 @@ export default function ScanView({ role }: { role: 'owner' | 'staff' }) {
         client_op_id: crypto.randomUUID(),
         product_id: product.id,
         batch_id: batchId || null,
-        from_location_id: fromLocation,
-        to_location_id: toLocation,
+        from_location_id: fromLocation || null,
+        to_location_id: toLocation || null,
         qty: n,
         note: note || null,
         queued_at: Date.now(),
@@ -280,15 +283,15 @@ export default function ScanView({ role }: { role: 'owner' | 'staff' }) {
                 <label className="block text-sm">
                         <span className="mb-1 block text-stone-600">From location <span title="Origin of the goods. Locations are internal storage places (bench, tunnel, shadehouse, shop)." className="ml-1 inline-block text-xs text-stone-400">?</span></span>
                   <select className={inputCls} value={fromLocation} onChange={(e) => setFromLocation(e.target.value)}>
-                    <option value="">Choose origin</option>
-                    {locations.map((l) => <option key={l.id} value={l.id}>{l.name} · {l.kind}</option>)}
+                    <option value="">Unassigned location</option>
+                    {locations.map((l) => <option key={l.id} value={l.id}>{l.name} · {l.kind}{l.active ? '' : ' (inactive)'}</option>)}
                   </select>
                 </label>
                 <label className="block text-sm">
                         <span className="mb-1 block text-stone-600">To location <span title="Destination of the goods. Deactivated locations are hidden by default." className="ml-1 inline-block text-xs text-stone-400">?</span></span>
                   <select className={inputCls} value={toLocation} onChange={(e) => setToLocation(e.target.value)}>
-                    <option value="">Choose destination</option>
-                    {locations.map((l) => <option key={l.id} value={l.id}>{l.name} · {l.kind}</option>)}
+                    <option value="">Unassigned location</option>
+                    {locations.filter((l) => l.active).map((l) => <option key={l.id} value={l.id}>{l.name} · {l.kind}</option>)}
                   </select>
                 </label>
               </div>
@@ -314,6 +317,13 @@ export default function ScanView({ role }: { role: 'owner' | 'staff' }) {
             </>
           ) : (
             <>
+              <label className="block text-sm">
+                <span className="mb-1 block text-stone-600">Stock location</span>
+                <select className={inputCls} value={locationId} onChange={(e) => setLocationId(e.target.value)}>
+                  <option value="">Unassigned location</option>
+                  {locations.filter((l) => l.active || mode === 'out').map((l) => <option key={l.id} value={l.id}>{l.name}{l.active ? '' : ' (inactive)'}</option>)}
+                </select>
+              </label>
               {mode === 'out' && (
                 <select className={inputCls} value={reason} onChange={(e) => setReason(e.target.value as 'sale' | 'loss')} aria-label="Reason">
                   <option value="sale">Sale</option>

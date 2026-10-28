@@ -5,6 +5,7 @@ export interface QueuedMovement {
   client_op_id: string;
   product_id: string;
   batch_id?: string | null;
+  location_id?: string | null;
   delta: number;
   reason: 'receive' | 'sale' | 'adjust' | 'loss';
   note?: string | null;
@@ -24,8 +25,8 @@ export interface QueuedTransfer {
   client_op_id: string;
   product_id: string;
   batch_id?: string | null;
-  from_location_id: string;
-  to_location_id: string;
+  from_location_id: string | null;
+  to_location_id: string | null;
   qty: number;
   note?: string | null;
   queued_at: number;
@@ -64,10 +65,11 @@ export async function flushQueue(): Promise<{ sent: number; failed: number; rema
         {
           method: 'POST',
           json: {
-            movements: chunk.map(({ client_op_id, product_id, batch_id, delta, reason, note }) => ({
+            movements: chunk.map(({ client_op_id, product_id, batch_id, location_id, delta, reason, note }) => ({
               client_op_id,
               product_id,
               batch_id,
+              location_id,
               delta,
               reason,
               note,

@@ -408,7 +408,7 @@ function QueuedTransfers() {
             <div key={t.client_op_id} className="flex items-center justify-between rounded bg-white p-2">
               <div className="min-w-0">
                 <div className="truncate font-semibold">{t.product_name} · {t.qty}</div>
-                <div className="text-xs text-stone-500">{locationsMap[t.from_location_id] ?? t.from_location_id} → {locationsMap[t.to_location_id] ?? t.to_location_id} · {new Date(t.queued_at).toLocaleString()}</div>
+                <div className="text-xs text-stone-500">{t.from_location_id ? locationsMap[t.from_location_id] ?? t.from_location_id : 'Unassigned'} → {t.to_location_id ? locationsMap[t.to_location_id] ?? t.to_location_id : 'Unassigned'} · {new Date(t.queued_at).toLocaleString()}</div>
                 {t.error && <div className="text-xs text-red-700">Error: {t.error}</div>}
               </div>
               <div className="flex gap-2">

@@ -12,7 +12,7 @@ export const GET: APIRoute = async ({ locals, url }) => {
 
   let query = locals.supabase
     .from('products')
-    .select('*, product_barcodes(barcode,type), batches(id,batch_code,potted_on,barcode,archived_at), stock_levels(batch_id,qty)', { count: 'exact' })
+    .select('*, product_barcodes(barcode,type), batches(id,batch_code,potted_on,barcode,archived_at), stock_levels(batch_id,location_id,qty)', { count: 'exact' })
     .order('name')
     .range(offset, offset + limit - 1);
   if (!includeInactive) query = query.eq('active', true);
@@ -22,7 +22,7 @@ export const GET: APIRoute = async ({ locals, url }) => {
   const { data, error, count } = await query;
   if (error) return dbError(error);
   const items = (data ?? []).map(({ stock_levels, ...p }) => {
-    const levels = stock_levels as { batch_id: string | null; qty: number }[];
+    const levels = stock_levels as { batch_id: string | null; location_id: string | null; qty: number }[];
     const batches = p.batches as {
       id: string;
       batch_code: string;
@@ -32,6 +32,7 @@ export const GET: APIRoute = async ({ locals, url }) => {
     }[];
     return {
       ...p,
+      stock_levels: levels,
       batches: batches.map((batch) => ({
         ...batch,
         qty: levels.filter((level) => level.batch_id === batch.id).reduce((total, level) => total + level.qty, 0),

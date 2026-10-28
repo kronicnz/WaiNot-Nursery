@@ -31,6 +31,7 @@ export const categorySchema = z.object({ name: text(80) });
 export const movementSchema = z.object({
   product_id: uuid,
   batch_id: uuid.nullable().optional(),
+  location_id: uuid.nullable().optional(),
   delta: z.number().int().min(-100000).max(100000).refine((n) => n !== 0, 'delta must be non-zero'),
   reason: z.enum(['receive', 'sale', 'adjust', 'loss']),
   note: z.string().trim().max(500).optional().nullable(),
@@ -109,8 +110,8 @@ export const locationPatchSchema = locationSchema.partial();
 export const transferSchema = z.object({
   product_id: uuid,
   batch_id: uuid.nullable().optional(),
-  from_location_id: uuid,
-  to_location_id: uuid,
+  from_location_id: uuid.nullable(),
+  to_location_id: uuid.nullable(),
   qty: z.number().int().min(1).max(1_000_000),
   note: z.string().trim().max(500).optional().nullable(),
   client_op_id: z.string().min(8).max(80),

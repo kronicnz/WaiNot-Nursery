@@ -46,7 +46,7 @@ export interface Product {
   active: boolean;
   total_qty?: number;
   product_barcodes?: { barcode: string; type: string }[];
-  stock_levels?: { batch_id: string | null; qty: number }[];
+  stock_levels?: { batch_id: string | null; location_id: string | null; qty: number }[];
   batches?: { id: string; batch_code: string; potted_on: string | null; barcode: string; archived_at: string | null; qty?: number; pot_size_id: string | null; grade_id: string | null; price_override: number | null }[];
   scanned_batch_id?: string;
 }

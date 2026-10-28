@@ -11,7 +11,7 @@ export const GET: APIRoute = async ({ locals, params }) => {
   if (!idSchema.safeParse(params.id).success) return fail('Invalid id');
   const { data, error } = await locals.supabase
     .from('products')
-    .select('*, product_barcodes(barcode,type), batches(*), stock_levels(id,batch_id,qty)')
+    .select('*, product_barcodes(barcode,type), batches(*), stock_levels(id,batch_id,location_id,qty)')
     .eq('id', params.id!)
     .maybeSingle();
   if (error) return dbError(error);

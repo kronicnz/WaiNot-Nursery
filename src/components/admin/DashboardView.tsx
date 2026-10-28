@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { api, type Category, type Movement, type Product } from '../../lib/client/api';
 import { Msg } from './ui';
+import NurserySummary from './NurserySummary';
 
 interface Low { product_id: string; sku: string; name: string; reorder_level: number; total_qty: number }
-type WorkflowTab = 'manage' | 'products' | 'scan' | 'stocktake' | 'activity';
+type WorkflowTab = 'manage' | 'products' | 'scan' | 'stocktake' | 'activity' | 'nursery:orders' | 'nursery:care';
 type BatchFilter = 'all' | 'attention' | 'low' | 'empty';
 
 const numberFormat = new Intl.NumberFormat('en-NZ');
@@ -139,6 +140,7 @@ export default function DashboardView({
   const maxCategoryCount = Math.max(1, ...categoryCounts.map((category) => category.count));
   return (
     <div className="space-y-6 pb-8">
+      <NurserySummary onNavigate={onNavigate} />
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="text-sm font-medium text-[#6f7b70]">{new Date().toLocaleDateString('en-NZ', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</p>
@@ -288,7 +290,7 @@ export default function DashboardView({
           <div className="flex flex-wrap items-start justify-between gap-3 border-b border-[#edf0eb] px-4 py-4 sm:px-5">
             <div>
               <h2 className="text-base font-semibold text-[#26392d]">Batch inventory</h2>
-              <p className="mt-1 text-sm text-[#7c887e]">Stock grouped by growing batch</p>
+              <p className="mt-1 text-sm text-[#7c887e]">Batch counts are compared with the product threshold. Product alerts above use the total across all batches.</p>
             </div>
             <button type="button" onClick={() => onNavigate('products')} className="inline-flex items-center gap-1 text-sm font-medium text-[#41634b] transition hover:text-[#1e3e2b]">
               All products <Icon name="arrow" className="h-4 w-4" />
@@ -300,7 +302,7 @@ export default function DashboardView({
                 {([
                   ['all', 'All batches', activeBatches.length],
                   ['attention', 'Attention', lowBatchCount + zeroStockBatches.length],
-                  ['low', 'Low stock', lowBatchCount],
+                  ['low', 'Low batch count', lowBatchCount],
                   ['empty', 'Empty', zeroStockBatches.length],
                 ] as const).map(([key, label, count]) => (
                   <button
@@ -521,7 +523,7 @@ function BatchRow({
   const status = batch.qty === 0
     ? { label: 'Empty', cls: 'bg-[#f8f2e4] text-[#927a3c]', bar: 'bg-[#c8ae6a]' }
     : batch.reorder_level > 0 && batch.qty <= batch.reorder_level
-      ? { label: 'Low stock', cls: 'bg-[#fff2e8] text-[#a7663c]', bar: 'bg-[#d9935b]' }
+      ? { label: 'Low batch count', cls: 'bg-[#fff2e8] text-[#a7663c]', bar: 'bg-[#d9935b]' }
       : { label: 'In stock', cls: 'bg-[#edf5ec] text-[#4e7751]', bar: 'bg-[#799875]' };
 
   return (

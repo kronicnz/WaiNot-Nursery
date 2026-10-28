@@ -11,10 +11,8 @@ export interface PublicPlantCategory {
 }
 
 export interface PublicPlantPrice {
-  pot_size: string;
-  pot_size_id: string;
+  pot_size: string | null;
   price: number | null;
-  sort_order: number;
 }
 
 export interface PublicPlant {
@@ -26,7 +24,7 @@ export interface PublicPlant {
   image_alt: string;
   category_sort_order: number;
   sort_order: number;
-  prices?: PublicPlantPrice[] | null;
+  prices: PublicPlantPrice[];
   low_availability: boolean;
 }
 
@@ -56,18 +54,32 @@ export async function getPublicPlantCatalog() {
     throw new Error(`Unable to load plant catalog: ${plantsResult.error.message}`);
   }
 
+  // Older deployments expose one price per plant; the public price list
+  // supplies the other sizes until the catalogue view is upgraded.
+  const needsPriceList = (plantsResult.data ?? []).some((plant) => !Array.isArray(plant.prices));
+  const priceRows = needsPriceList ? await getPublicPriceList() : [];
+  const pricesBySku = new Map<string, PublicPlantPrice[]>();
+  for (const row of priceRows) {
+    if (row.min_qty !== 1 || row.discount_pct !== 0 || row.unit_price === null) continue;
+    const prices = pricesBySku.get(row.sku) ?? [];
+    if (!prices.some((price) => price.pot_size === row.pot_size && price.price === row.unit_price)) {
+      prices.push({ pot_size: row.pot_size, price: row.unit_price });
+    }
+    pricesBySku.set(row.sku, prices);
+  }
+
   const plants = (plantsResult.data ?? []).map((p: any) => ({
     ...p,
     prices: Array.isArray(p.prices)
       ? p.prices
           .map((pr: any) => ({
             pot_size: pr.pot_size,
-            pot_size_id: pr.pot_size_id,
             price: pr.price == null ? null : Number(pr.price),
             sort_order: pr.sort_order ?? 0,
           }))
-          .sort((a: PublicPlantPrice, b: PublicPlantPrice) => a.sort_order - b.sort_order || a.pot_size.localeCompare(b.pot_size))
-      : null,
+          .sort((a: PublicPlantPrice & { sort_order: number }, b: PublicPlantPrice & { sort_order: number }) =>
+            a.sort_order - b.sort_order || (a.pot_size ?? '').localeCompare(b.pot_size ?? ''))
+      : pricesBySku.get(p.id) ?? (p.price == null ? [] : [{ pot_size: p.price_label ?? null, price: Number(p.price) }]),
   })) as PublicPlant[];
 
   return {

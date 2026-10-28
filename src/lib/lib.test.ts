@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { barcodeCandidates } from './barcode';
 import { parseCsv, toCsv } from './csv';
-import { movementSchema, priceRowSchema, productSchema, stockCountSchema } from './validation';
+import { movementSchema, priceRowSchema, productSchema, stockCountSchema, transferSchema } from './validation';
 
 describe('csv', () => {
   it('round-trips quotes, commas and newlines', () => {
@@ -45,5 +45,14 @@ describe('validation', () => {
     expect(stockCountSchema.safeParse(count).success).toBe(true);
     expect(stockCountSchema.safeParse({ ...count, counted_qty: -1 }).success).toBe(false);
     expect(stockCountSchema.safeParse({ ...count, counted_qty: 1.5 }).success).toBe(false);
+  });
+  it('accepts unassigned locations but rejects transfers to the same location', () => {
+    const location = crypto.randomUUID();
+    const transfer = { ...base, from_location_id: null, to_location_id: location, qty: 1 };
+    expect(transferSchema.safeParse(transfer).success).toBe(true);
+    expect(transferSchema.safeParse({ ...transfer, from_location_id: location }).success).toBe(false);
+    expect(transferSchema.safeParse({ ...transfer, to_location_id: null }).success).toBe(false);
+    expect(movementSchema.safeParse({ ...base, delta: -1, reason: 'sale', location_id: location }).success).toBe(true);
+    expect(movementSchema.safeParse({ ...base, delta: -1, reason: 'sale', location_id: 'bad' }).success).toBe(false);
   });
 });
